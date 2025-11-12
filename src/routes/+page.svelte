@@ -1,59 +1,77 @@
 <script lang="ts">
-	import Counter from './Counter.svelte';
-	import welcome from '$lib/images/svelte-welcome.webp';
-	import welcomeFallback from '$lib/images/svelte-welcome.png';
+	import PrescriptionForm from '$lib/components/PrescriptionForm.svelte';
+	import ResultsDisplay from '$lib/components/ResultsDisplay.svelte';
+	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
+	import type { PrescriptionInput, CalculationResult } from '$lib/types';
+
+	let result: CalculationResult | null = null;
+	let error: string | null = null;
+	let actionable: string | undefined = undefined;
+	let loading = false;
+
+	async function handleSubmit(input: PrescriptionInput) {
+		loading = true;
+		error = null;
+		actionable = undefined;
+		result = null;
+
+		try {
+			const response = await fetch('/api/calculate', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify(input)
+			});
+
+			const data = await response.json();
+
+			if (!response.ok) {
+				error = data.error || 'An error occurred';
+				actionable = data.actionable;
+				return;
+			}
+
+			result = data;
+		} catch (err) {
+			error = 'Unable to connect to the server. Please try again.';
+			actionable = 'Check your internet connection and try again.';
+			console.error(err);
+		} finally {
+			loading = false;
+		}
+	}
 </script>
 
 <svelte:head>
-	<title>Home</title>
-	<meta name="description" content="Svelte demo app" />
+	<title>NDC Calculator</title>
+	<meta
+		name="description"
+		content="NDC Packaging & Quantity Calculator for pharmacy professionals"
+	/>
 </svelte:head>
 
-<section>
-	<h1>
-		<span class="welcome">
-			<picture>
-				<source srcset={welcome} type="image/webp" />
-				<img src={welcomeFallback} alt="Welcome" />
-			</picture>
-		</span>
+<div class="container mx-auto max-w-4xl px-4 py-8">
+	<h1 class="mb-6 text-3xl font-bold">NDC Packaging & Quantity Calculator</h1>
 
-		to your new<br />SvelteKit app
-	</h1>
+	<div class="mb-6 rounded-lg bg-white p-6 shadow-md">
+		<PrescriptionForm onSubmit={handleSubmit} {loading} />
+	</div>
 
-	<h2>
-		try editing <strong>src/routes/+page.svelte</strong>
-	</h2>
+	{#if error}
+		<div class="mb-6">
+			<ErrorMessage
+				{error}
+				{actionable}
+				onRetry={() => {
+					error = null;
+					result = null;
+				}}
+			/>
+		</div>
+	{/if}
 
-	<Counter />
-</section>
-
-<style>
-	section {
-		display: flex;
-		flex-direction: column;
-		justify-content: center;
-		align-items: center;
-		flex: 0.6;
-	}
-
-	h1 {
-		width: 100%;
-	}
-
-	.welcome {
-		display: block;
-		position: relative;
-		width: 100%;
-		height: 0;
-		padding: 0 0 calc(100% * 495 / 2048) 0;
-	}
-
-	.welcome img {
-		position: absolute;
-		width: 100%;
-		height: 100%;
-		top: 0;
-		display: block;
-	}
-</style>
+	{#if result}
+		<div class="rounded-lg bg-white p-6 shadow-md">
+			<ResultsDisplay {result} />
+		</div>
+	{/if}
+</div>
