@@ -58,9 +58,10 @@
 		const input: PrescriptionInput = {
 			drugNameOrNDC: drugNameOrNDC.trim(),
 			sig: sig.trim(),
-			daysSupply: daysSupply === '' ? null : Number(daysSupply),
+			// Treat empty string or 0 as null for daysSupply (allows reverse calculation)
+			daysSupply: daysSupply === '' || daysSupply === 0 ? null : Number(daysSupply),
 			totalQuantity: totalQuantity === '' ? undefined : Number(totalQuantity),
-			manualDosesPerDay: manualDosesPerDay === '' ? undefined : Number(manualDosesPerDay)
+			manualDosesPerDay: manualDosesPerDay === '' || manualDosesPerDay === 0 ? undefined : Number(manualDosesPerDay)
 		};
 
 		await onSubmit(input);

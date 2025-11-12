@@ -39,6 +39,10 @@
 
 **Expected:** Calculated days supply: 30 days
 
+**Result:** ✅ PASSED
+
+![Test 3 Result - Reverse Calculation](./test-results/test-3-SIG-result.png)
+
 ---
 
 ## Test 4: Error Handling - Invalid Drug

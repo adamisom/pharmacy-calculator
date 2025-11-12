@@ -18,18 +18,21 @@ export function validatePrescriptionInput(input: PrescriptionInput): ValidationR
 	}
 
 	// Days supply validation
-	if (input.daysSupply !== null) {
-		if (typeof input.daysSupply !== 'number' || isNaN(input.daysSupply)) {
+	// Treat 0 as null for reverse calculation scenarios
+	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
+	
+	if (effectiveDaysSupply !== null) {
+		if (typeof effectiveDaysSupply !== 'number' || isNaN(effectiveDaysSupply)) {
 			errors.push('Days supply must be a valid number');
-		} else if (input.daysSupply < CALCULATION_THRESHOLDS.MIN_DAYS_SUPPLY) {
+		} else if (effectiveDaysSupply < CALCULATION_THRESHOLDS.MIN_DAYS_SUPPLY) {
 			errors.push(`Days supply must be at least ${CALCULATION_THRESHOLDS.MIN_DAYS_SUPPLY} day`);
-		} else if (input.daysSupply > CALCULATION_THRESHOLDS.MAX_DAYS_SUPPLY) {
+		} else if (effectiveDaysSupply > CALCULATION_THRESHOLDS.MAX_DAYS_SUPPLY) {
 			errors.push(`Days supply cannot exceed ${CALCULATION_THRESHOLDS.MAX_DAYS_SUPPLY} days`);
 		}
 	}
 
 	// Reverse calculation validation
-	if (input.daysSupply === null) {
+	if (effectiveDaysSupply === null) {
 		if (!input.totalQuantity || input.totalQuantity <= 0) {
 			errors.push('Either days supply or total quantity must be provided');
 		}

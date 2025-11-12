@@ -29,7 +29,7 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?three\s+times\s+daily|tid/i,
+		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
 		extractor: (match) => ({
 			dosesPerDay: 3,
 			unitsPerDose: parseInt(match[1], 10),
@@ -37,9 +37,18 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?four\s+times\s+daily|qid/i,
+		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:four|4)\s+times\s+daily|qid/i,
 		extractor: (match) => ({
 			dosesPerDay: 4,
+			unitsPerDose: parseInt(match[1], 10),
+			unitType: 'tablet'
+		})
+	},
+	// Pattern: "X tablet(s) N times daily" (numeric frequency)
+	{
+		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(\d+)\s+times\s+daily/i,
+		extractor: (match) => ({
+			dosesPerDay: parseInt(match[2], 10),
 			unitsPerDose: parseInt(match[1], 10),
 			unitType: 'tablet'
 		})
@@ -71,9 +80,18 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:capsule|capsules|caps)\s+(?:by\s+mouth\s+)?three\s+times\s+daily|tid/i,
+		pattern: /(\d+)\s*(?:capsule|capsules|caps)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
 		extractor: (match) => ({
 			dosesPerDay: 3,
+			unitsPerDose: parseInt(match[1], 10),
+			unitType: 'capsule'
+		})
+	},
+	// Pattern: "X capsule(s) N times daily" (numeric frequency)
+	{
+		pattern: /(\d+)\s*(?:capsule|capsules|caps)\s+(?:by\s+mouth\s+)?(\d+)\s+times\s+daily/i,
+		extractor: (match) => ({
+			dosesPerDay: parseInt(match[2], 10),
 			unitsPerDose: parseInt(match[1], 10),
 			unitType: 'capsule'
 		})

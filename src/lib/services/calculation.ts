@@ -78,11 +78,14 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	const parsedSIG = parseSIGWithFallback(input.sig, input.manualDosesPerDay);
 
 	// 5. Calculate quantity or days supply
+	// Treat 0 as null for reverse calculation scenarios
+	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
+	
 	let totalQuantityNeeded: number;
 	let daysSupply: number;
 
-	if (input.daysSupply !== null) {
-		daysSupply = input.daysSupply;
+	if (effectiveDaysSupply !== null) {
+		daysSupply = effectiveDaysSupply;
 		totalQuantityNeeded = calculateTotalQuantityNeeded(parsedSIG, daysSupply);
 	} else if (input.totalQuantity) {
 		totalQuantityNeeded = input.totalQuantity;
