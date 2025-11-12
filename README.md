@@ -135,20 +135,22 @@ docs/
 
 ## Documentation
 
+### Core Documentation
 - **[PRD](./docs/PRD.md)**: Product Requirements Document with detailed specifications
 - **[Architecture](./docs/ARCHITECTURE.md)**: System architecture and design decisions
-- **[Task List](./docs/TASK_LIST.md)**: Implementation guide with code samples
+- **[Implementation Summary](./docs/misc/IMPLEMENTATION_SUMMARY.md)**: Feature overview and smoke testing
+
+### User & Developer Guides
+- **[User Guide](./docs/misc/USER_GUIDE.md)**: Step-by-step usage instructions for pharmacists
+- **[API Documentation](./docs/misc/API.md)**: Endpoint documentation with request/response formats
+- **[Developer Guide](./docs/misc/DEVELOPER.md)**: Setup instructions and development workflow
+- **[Testing Guide](./docs/misc/TESTING.md)**: Testing practices and strategies
+- **[Troubleshooting Guide](./docs/misc/TROUBLESHOOTING.md)**: Common issues and solutions
+- **[Deployment Plan](./docs/misc/DEPLOYMENT_PLAN.md)**: GCP deployment instructions with gcloud CLI commands
 
 ## Deployment
 
-### Google Cloud Platform
-
-The app is designed to deploy on GCP using either:
-
-- **Cloud Run**: Containerized deployment with auto-scaling
-- **App Engine**: Managed platform deployment
-
-See the [Architecture document](./docs/ARCHITECTURE.md) for deployment details.
+The app is designed to deploy on Google Cloud Platform using Cloud Run or App Engine. See the [Deployment Plan](./docs/misc/DEPLOYMENT_PLAN.md) for detailed instructions.
 
 ## Contributing
 
@@ -159,16 +161,18 @@ See the [Architecture document](./docs/ARCHITECTURE.md) for deployment details.
 
 ## Future Work
 
+### Features
+- Enhanced SIG parsing for complex prescription instructions
+- Support for additional package types and unit types
+- Persistent caching (Redis) for multi-instance deployments
+- Batch calculation API for multiple prescriptions
+- Historical NDC tracking and change notifications
+
 ### Documentation
-
-The following documentation is planned for future releases:
-
-- **User Guide** (`docs/USER_GUIDE.md`): Step-by-step usage instructions for pharmacists and pharmacy technicians, including screenshots, common scenarios, and FAQ
-- **Deployment Guide** (`docs/DEPLOYMENT.md`): Detailed GCP deployment instructions, environment setup, Cloud Run vs App Engine comparison, and monitoring configuration
-- **API Documentation** (`docs/API.md`): Detailed endpoint documentation with request/response formats, error codes, and integration examples
-- **Troubleshooting Guide** (`docs/TROUBLESHOOTING.md`): Common issues and solutions, debugging tips, and performance optimization
-- **Developer Guide** (`docs/DEVELOPER.md`): Setup instructions for new developers, code style guidelines, and contribution workflow
-- **Testing Guide** (`docs/TESTING.md`): Testing practices, test data management, mocking strategies, and coverage requirements
+- Add screenshots to User Guide
+- Expand troubleshooting scenarios
+- Add performance optimization guide
+- Create video tutorials for common workflows
 
 ## License
 
