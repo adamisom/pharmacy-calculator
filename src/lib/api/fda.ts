@@ -18,7 +18,6 @@ interface FDANDCResponse {
 		}>;
 		labeler_name?: string;
 		proprietary_name?: string;
-		non_proprietary_name?: string;
 	}>;
 }
 
@@ -80,10 +79,21 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 	try {
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
-		const url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${normalizedNDC}"&limit=1${apiKeyParam}`;
 
-		const data = await fetchWithRetry<FDANDCResponse>(url);
-		const result = data.results?.[0];
+		// Try package_ndc first (11 digits), then product_ndc (8-9 digits)
+		const isPackageNDC = normalizedNDC.length === 11;
+		const searchField = isPackageNDC ? 'package_ndc' : 'product_ndc';
+		let url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
+
+		let data = await fetchWithRetry<FDANDCResponse>(url);
+		let result = data.results?.[0];
+
+		// If not found and we tried package_ndc, try product_ndc as fallback
+		if (!result && isPackageNDC) {
+			url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${normalizedNDC}"&limit=1${apiKeyParam}`;
+			data = await fetchWithRetry<FDANDCResponse>(url);
+			result = data.results?.[0];
+		}
 
 		if (!result) return null;
 

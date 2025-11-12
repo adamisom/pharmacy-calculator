@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { onMount } from 'svelte';
 	import type { PrescriptionInput } from '$lib/types';
 	import LoadingSpinner from './LoadingSpinner.svelte';
 
@@ -12,6 +13,31 @@
 	export let manualDosesPerDay: number | '' = '';
 
 	let errors: string[] = [];
+	let loadingMessage = 'Calculating...';
+	let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
+
+	function updateLoadingMessage(isLoading: boolean) {
+		if (isLoading) {
+			loadingMessage = 'Calculating...';
+			if (loadingTimeout) clearTimeout(loadingTimeout);
+			loadingTimeout = setTimeout(() => {
+				loadingMessage = 'Calculating... just a few more seconds please...';
+			}, 2500);
+		} else {
+			if (loadingTimeout) {
+				clearTimeout(loadingTimeout);
+				loadingTimeout = null;
+			}
+		}
+	}
+
+	$: updateLoadingMessage(loading);
+
+	onMount(() => {
+		return () => {
+			if (loadingTimeout) clearTimeout(loadingTimeout);
+		};
+	});
 
 	async function handleSubmit() {
 		errors = [];
@@ -134,10 +160,11 @@
 	<button
 		type="submit"
 		disabled={loading}
-		class="flex w-full items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+		class="flex w-full items-center justify-center gap-2 rounded-md bg-blue-600 px-4 py-2.5 text-base font-medium text-white transition-all hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:bg-blue-600"
 	>
 		{#if loading}
-			<LoadingSpinner loading={true} />
+			<LoadingSpinner loading={true} size="small" />
+			<span>{loadingMessage}</span>
 		{:else}
 			Calculate
 		{/if}
