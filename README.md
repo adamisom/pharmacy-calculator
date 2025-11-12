@@ -125,12 +125,14 @@ docs/
 
 - **Base URL**: `https://rxnav.nlm.nih.gov/REST`
 - **Authentication**: None required
+- **Documentation**: https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getNDCs.html
 - Used for drug name normalization and NDC lookup
 
 ### FDA NDC Directory API
 
 - **Base URL**: `https://api.fda.gov/drug/ndc.json`
 - **Authentication**: Optional API key
+- **Documentation**: https://open.fda.gov/apis/drug/ndc/
 - Used for package information and active/inactive status
 
 ## Documentation

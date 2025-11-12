@@ -124,8 +124,8 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 	try {
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
-		// Search by non-proprietary name (generic name) or proprietary name (brand name)
-		const url = `${API_CONFIG.FDA_BASE_URL}?search=(non_proprietary_name:"${encodeURIComponent(drugName)}" OR proprietary_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
+		// Search by generic_name (generic name) or brand_name (brand name)
+		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
 		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
 
 		const data = await fetchWithRetry<FDANDCResponse>(url);

@@ -28,7 +28,9 @@
 **Solutions**:
 - Verify internet connection
 - Check RxNorm API status: https://rxnav.nlm.nih.gov/
+- Check RxNorm API docs: https://lhncbc.nlm.nih.gov/RxNav/APIs/api-RxNorm.getNDCs.html
 - For FDA API errors, verify API key is set correctly (if using)
+- Check FDA API docs: https://open.fda.gov/apis/drug/ndc/
 - Check browser console for detailed error messages
 - Try alternative drug names or spellings
 
@@ -83,9 +85,20 @@ Cache is in-memory only. To clear:
 # Test RxNorm API
 curl "https://rxnav.nlm.nih.gov/REST/approximateTerm.json?term=aspirin"
 
+# Test RxNorm NDC lookup (note: some RxCUIs may have no NDCs)
+curl "https://rxnav.nlm.nih.gov/REST/rxcui/1191/ndcs.json"
+
+# Test FDA API by drug name (works when RxNorm has no NDCs)
+curl "https://api.fda.gov/drug/ndc.json?search=generic_name:\"aspirin\"&limit=5"
+
+# Check FDA API field names (get sample record)
+curl "https://api.fda.gov/drug/ndc.json?limit=1" | jq '.results[0] | keys'
+
 # Test FDA API (with key)
 curl "https://api.fda.gov/drug/ndc.json?api_key=YOUR_KEY&search=product_ndc:\"12345-678-90\""
 ```
+
+**Note**: RxCUI 1191 (Aspirin) comes from RxNorm's `approximateTerm` API, but this RxCUI has no NDCs in RxNorm despite being a valid concept. This is a known limitation - RxNorm doesn't maintain NDCs for all drug concepts, especially broad generic names. Alternative RxNorm endpoints (`spellingsuggestions`, `rxcui?name=`, `history.json`) all confirm RxCUI 1191 exists but has no NDC data. The FDA fallback search by `generic_name` works in these cases.
 
 ## Cloud Run Specific
 
