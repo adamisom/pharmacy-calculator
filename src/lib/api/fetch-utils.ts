@@ -29,11 +29,21 @@ export async function fetchWithRetry<T>(
 		try {
 			const response = await fetchWithTimeout(url, timeoutMs);
 			if (!response.ok) {
+				// Don't retry on client errors (4xx) - these are likely bad requests
+				if (response.status >= 400 && response.status < 500) {
+					const errorText = await response.text().catch(() => response.statusText);
+					throw new Error(`HTTP ${response.status}: ${errorText}`);
+				}
+				// Retry on server errors (5xx) and other errors
 				throw new Error(`HTTP ${response.status}: ${response.statusText}`);
 			}
 			return await response.json();
 		} catch (error) {
 			lastError = error instanceof Error ? error : new Error(String(error));
+			// Don't retry on client errors (4xx)
+			if (error instanceof Error && error.message.includes('HTTP 4')) {
+				throw lastError;
+			}
 			if (attempt < maxRetries) {
 				// Wait before retry (exponential backoff)
 				await new Promise((resolve) => setTimeout(resolve, 1000 * (attempt + 1)));

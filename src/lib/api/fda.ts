@@ -70,6 +70,27 @@ function isNDCActive(result: FDANDCResponse['results'][0]): boolean {
 	return endDate >= new Date(); // Active if end date is in future or today
 }
 
+// Reconstruct proper NDC format with dashes for FDA API
+// Product NDCs (8-9 digits): 5-3-2 or 5-4-2 format
+// Package NDCs (11 digits): 5-3-3 format
+function formatNDCWithDashes(ndc: string): string {
+	const cleaned = ndc.replace(/[-\s]/g, '');
+	
+	if (cleaned.length === 8) {
+		// Product NDC: 5-3 format (e.g., 53943-080)
+		return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`;
+	} else if (cleaned.length === 9) {
+		// Product NDC: 5-4 format (e.g., 12345-6789)
+		return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`;
+	} else if (cleaned.length === 11) {
+		// Package NDC: 5-3-3 format (e.g., 53943-080-01)
+		return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}-${cleaned.slice(8)}`;
+	}
+	
+	// Return as-is if length doesn't match expected patterns
+	return ndc;
+}
+
 export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null> {
 	const normalizedNDC = normalizeNDC(ndc);
 	const cacheKey = `fda:ndc:${normalizedNDC}`;
@@ -80,19 +101,74 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 
-		// Try package_ndc first (11 digits), then product_ndc (8-9 digits)
+		// Try both normalized format and original format (with dashes)
+		const originalNDC = ndc.trim();
 		const isPackageNDC = normalizedNDC.length === 11;
 		const searchField = isPackageNDC ? 'package_ndc' : 'product_ndc';
-		let url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
-
-		let data = await fetchWithRetry<FDANDCResponse>(url);
-		let result = data.results?.[0];
+		console.log('[FDA] Looking up NDC:', { original: originalNDC, normalized: normalizedNDC, isPackageNDC, searchField });
+		
+		// For product NDCs (8-9 digits), try original format first (FDA API prefers dashes)
+		// For package NDCs (11 digits), try normalized format first
+		let url: string;
+		let data: FDANDCResponse;
+		let result: FDANDCResponse['results'][0] | undefined;
+		
+		if (isPackageNDC) {
+			// Try normalized format first for package NDCs
+			url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
+			data = await fetchWithRetry<FDANDCResponse>(url);
+			result = data.results?.[0];
+			
+			// If not found, try original format (with dashes) if different
+			if (!result && originalNDC !== normalizedNDC) {
+				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${originalNDC}"&limit=1${apiKeyParam}`;
+				data = await fetchWithRetry<FDANDCResponse>(url);
+				result = data.results?.[0];
+			}
+		} else {
+			// For product NDCs, try original format first (with dashes)
+			if (originalNDC !== normalizedNDC) {
+				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${originalNDC}"&limit=1${apiKeyParam}`;
+				console.log('[FDA] Trying original format URL:', url);
+				data = await fetchWithRetry<FDANDCResponse>(url);
+				result = data.results?.[0];
+				console.log('[FDA] Original format result:', result ? 'found' : 'not found');
+			}
+			
+			// If original had no dashes or didn't work, try reconstructed format with dashes
+			if (!result) {
+				const dashedFormat = formatNDCWithDashes(normalizedNDC);
+				if (dashedFormat !== normalizedNDC && dashedFormat !== originalNDC) {
+					url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${dashedFormat}"&limit=1${apiKeyParam}`;
+					console.log('[FDA] Trying reconstructed dashed format URL:', url);
+					data = await fetchWithRetry<FDANDCResponse>(url);
+					result = data.results?.[0];
+					console.log('[FDA] Reconstructed dashed format result:', result ? 'found' : 'not found');
+				}
+			}
+			
+			// If not found, try normalized format as fallback (usually won't work but worth trying)
+			if (!result) {
+				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
+				console.log('[FDA] Trying normalized format URL:', url);
+				data = await fetchWithRetry<FDANDCResponse>(url);
+				result = data.results?.[0];
+				console.log('[FDA] Normalized format result:', result ? 'found' : 'not found');
+			}
+		}
 
 		// If not found and we tried package_ndc, try product_ndc as fallback
 		if (!result && isPackageNDC) {
 			url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${normalizedNDC}"&limit=1${apiKeyParam}`;
 			data = await fetchWithRetry<FDANDCResponse>(url);
 			result = data.results?.[0];
+			
+			// Also try original format for product_ndc
+			if (!result && originalNDC !== normalizedNDC) {
+				url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${originalNDC}"&limit=1${apiKeyParam}`;
+				data = await fetchWithRetry<FDANDCResponse>(url);
+				result = data.results?.[0];
+			}
 		}
 
 		if (!result) return null;
@@ -203,6 +279,11 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 		}
 		return packages;
 	} catch (err) {
+		// Handle 400 errors gracefully (bad request, invalid search query)
+		if (err instanceof Error && err.message.includes('HTTP 400')) {
+			console.warn('[FDA] Bad request for drug search:', drugName, '- likely invalid search query');
+			return [];
+		}
 		console.error('[FDA] Error searching for drug:', drugName, err);
 		return [];
 	}

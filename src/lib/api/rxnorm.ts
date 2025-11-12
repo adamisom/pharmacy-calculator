@@ -101,9 +101,10 @@ export function normalizeNDC(ndc: string): string {
 }
 
 export function isNDCFormat(input: string): boolean {
-	// Check if input looks like an NDC (10-11 digits, possibly with dashes)
+	// Check if input looks like an NDC (8-11 digits, possibly with dashes)
+	// Product NDCs are 8-9 digits, package NDCs are 10-11 digits
 	const cleaned = input.replace(/[-\s]/g, '');
-	return /^\d{10,11}$/.test(cleaned);
+	return /^\d{8,11}$/.test(cleaned);
 }
 
 export async function normalizeDrugInput(

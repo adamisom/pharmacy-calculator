@@ -24,11 +24,13 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 
 	if (isNDCFormat(input.drugNameOrNDC)) {
 		// Direct NDC input - skip RxNorm lookup
-		const normalizedNDC = normalizeNDC(input.drugNameOrNDC);
+		// Pass original NDC string to preserve dashes for FDA API lookup
+		const originalNDC = input.drugNameOrNDC.trim();
+		const normalizedNDC = normalizeNDC(originalNDC);
 		rxcui = 'N/A';
 		drugName = `NDC: ${normalizedNDC}`;
-		// Get package info for single NDC
-		const packageInfo = await getMultipleNDCInfo([normalizedNDC]);
+		// Get package info for single NDC - pass original to preserve format
+		const packageInfo = await getMultipleNDCInfo([originalNDC]);
 		if (packageInfo.length === 0) {
 			throw getGenericError(
 				'No package information found',
