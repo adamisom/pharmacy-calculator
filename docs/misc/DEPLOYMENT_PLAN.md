@@ -25,15 +25,21 @@ Update `svelte.config.js`: `import adapter from '@sveltejs/adapter-node';`
 ### 2. Create Dockerfile
 
 ```dockerfile
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 WORKDIR /app
 COPY package*.json ./
+COPY svelte.config.js ./
+COPY vite.config.ts ./
+COPY tsconfig.json ./
+COPY src ./src
+COPY static ./static
+COPY postcss.config.js ./
+COPY tailwind.config.ts ./
+COPY eslint.config.js ./
 RUN npm ci && npm run build
 
-FROM node:18-alpine
+FROM node:20-alpine
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci --only=production
 COPY --from=builder /app/build ./build
 EXPOSE 3000
 CMD ["node", "build"]
@@ -41,8 +47,30 @@ CMD ["node", "build"]
 
 ### 3. Deploy to Cloud Run
 
+#### Using Artifact Registry (Recommended)
+
 ```sh
+# Build and push image
+gcloud builds submit --tag us-central1-docker.pkg.dev/PROJECT_ID/ndc-calculator/ndc-calculator
+
+# Deploy to Cloud Run
+gcloud run deploy ndc-calculator \
+  --image us-central1-docker.pkg.dev/PROJECT_ID/ndc-calculator/ndc-calculator \
+  --platform managed \
+  --region us-central1 \
+  --allow-unauthenticated \
+  --set-env-vars "VITE_FDA_API_KEY=your_key_here" \
+  --memory 512Mi \
+  --min-instances 0 --max-instances 10
+```
+
+#### Using Container Registry (Legacy)
+
+```sh
+# Build and push image
 gcloud builds submit --tag gcr.io/PROJECT_ID/ndc-calculator
+
+# Deploy to Cloud Run
 gcloud run deploy ndc-calculator \
   --image gcr.io/PROJECT_ID/ndc-calculator \
   --platform managed \
@@ -51,6 +79,36 @@ gcloud run deploy ndc-calculator \
   --set-env-vars "VITE_FDA_API_KEY=your_key_here" \
   --memory 512Mi \
   --min-instances 0 --max-instances 10
+```
+
+#### Common gcloud CLI Commands
+
+```sh
+# Set project
+gcloud config set project PROJECT_ID
+
+# List services
+gcloud run services list --region us-central1
+
+# View service details
+gcloud run services describe ndc-calculator --region us-central1
+
+# View logs
+gcloud run logs read --service ndc-calculator --region us-central1 --limit 50
+
+# Update environment variables
+gcloud run services update ndc-calculator \
+  --set-env-vars "VITE_FDA_API_KEY=new_key" \
+  --region us-central1
+
+# Update memory/CPU
+gcloud run services update ndc-calculator \
+  --memory 1Gi \
+  --cpu 2 \
+  --region us-central1
+
+# Get service URL
+gcloud run services describe ndc-calculator --region us-central1 --format 'value(status.url)'
 ```
 
 ## Environment Variables
