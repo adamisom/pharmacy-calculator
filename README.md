@@ -37,13 +37,13 @@ git clone <repository-url>
 cd ndc-calculator
 ```
 
-2. Install dependencies:
+1. Install dependencies:
 
 ```sh
 npm install
 ```
 
-3. (Optional) Set up environment variables:
+1. (Optional) Set up environment variables:
 
 ```sh
 # Create .env file
@@ -89,7 +89,7 @@ npm test
 
 ## Project Structure
 
-```
+```text
 src/
 ├── lib/
 │   ├── api/           # API clients (RxNorm, FDA, cache)
@@ -136,11 +136,13 @@ docs/
 ## Documentation
 
 ### Core Documentation
+
 - **[PRD](./docs/PRD.md)**: Product Requirements Document with detailed specifications
 - **[Architecture](./docs/ARCHITECTURE.md)**: System architecture and design decisions
 - **[Implementation Summary](./docs/misc/IMPLEMENTATION_SUMMARY.md)**: Feature overview and smoke testing
 
 ### User & Developer Guides
+
 - **[User Guide](./docs/misc/USER_GUIDE.md)**: Step-by-step usage instructions for pharmacists
 - **[API Documentation](./docs/misc/API.md)**: Endpoint documentation with request/response formats
 - **[Developer Guide](./docs/misc/DEVELOPER.md)**: Setup instructions and development workflow
@@ -161,14 +163,16 @@ The app is designed to deploy on Google Cloud Platform using Cloud Run or App En
 
 ## Future Work
 
-### Features
+### Planned Features
+
 - Enhanced SIG parsing for complex prescription instructions
 - Support for additional package types and unit types
 - Persistent caching (Redis) for multi-instance deployments
 - Batch calculation API for multiple prescriptions
 - Historical NDC tracking and change notifications
 
-### Documentation
+### Documentation Improvements
+
 - Add screenshots to User Guide
 - Expand troubleshooting scenarios
 - Add performance optimization guide
