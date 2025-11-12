@@ -29,10 +29,13 @@ export async function searchDrugName(
 
 	try {
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/approximateTerm.json?term=${encodeURIComponent(drugName)}&maxEntries=1`;
+		console.log('[RxNorm] Searching for drug:', drugName, 'URL:', url);
 		const data = await fetchWithRetry<RxNormApproximateTermResult>(url);
+		console.log('[RxNorm] Response:', JSON.stringify(data, null, 2));
 
 		const candidate = data.approximateGroup?.candidate?.[0];
 		if (!candidate?.rxcui || !candidate?.name) {
+			console.log('[RxNorm] No candidate found for:', drugName);
 			return null;
 		}
 
@@ -40,6 +43,7 @@ export async function searchDrugName(
 		cache.set(cacheKey, result);
 		return result;
 	} catch (err) {
+		console.error('[RxNorm] Error searching for drug:', drugName, err);
 		if (err instanceof Error && err.message.includes('timeout')) {
 			throw getAPITimeoutError();
 		}

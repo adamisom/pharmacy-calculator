@@ -5,11 +5,12 @@
 	export let onSubmit: (input: PrescriptionInput) => Promise<void>;
 	export let loading: boolean = false;
 
-	let drugNameOrNDC = '';
-	let sig = '';
-	let daysSupply: number | '' = '';
-	let totalQuantity: number | '' = '';
-	let manualDosesPerDay: number | '' = '';
+	export let drugNameOrNDC: string = '';
+	export let sig: string = '';
+	export let daysSupply: number | '' = '';
+	export let totalQuantity: number | '' = '';
+	export let manualDosesPerDay: number | '' = '';
+
 	let errors: string[] = [];
 
 	async function handleSubmit() {
