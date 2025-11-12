@@ -23,22 +23,61 @@ interface FDANDCResponse {
 
 // Helper to extract package size from description
 function extractPackageSize(description: string): number {
-	// Common patterns: "30 TABLET", "100 CAPSULE", "5 ML", "1 BOTTLE, PLASTIC"
-	const patterns = [
+	// Priority 1: Look for unit counts (TABLET, CAPSULE, etc.) - these are the actual package sizes
+	const unitPatterns = [
 		/(\d+)\s*(?:TABLET|CAPSULE|ML|UNIT|PUFF|ACTUATION)/i,
 		/(\d+)\s*(?:COUNT|CT|EA)/i
 	];
 
-	for (const pattern of patterns) {
-		const match = description.match(pattern);
-		if (match) {
-			return parseInt(match[1], 10);
+	// Try to find all unit count matches (for nested descriptions like "30 POUCH / 1 TABLET in 1 POUCH")
+	const allUnitMatches: number[] = [];
+	for (const pattern of unitPatterns) {
+		const matches = description.matchAll(new RegExp(pattern.source, pattern.flags + 'g'));
+		for (const match of matches) {
+			allUnitMatches.push(parseInt(match[1], 10));
 		}
 	}
 
-	// Default: try to find any number
-	const numberMatch = description.match(/(\d+)/);
-	return numberMatch ? parseInt(numberMatch[1], 10) : 1;
+	if (allUnitMatches.length > 0) {
+		// Try to calculate total for nested descriptions
+		// Pattern: "X CONTAINER / Y TABLET in 1 CONTAINER" = X * Y total
+		// Find container counts (excluding "1 BOX" or "1 CARTON" which are outer packaging)
+		const containerMatches = [
+			...description.matchAll(/(\d+)\s*(?:BLISTER|POUCH|PACK|BOX|CARTON)/gi)
+		];
+		// Find unit counts
+		const unitMatches = [...description.matchAll(/(\d+)\s*(?:TABLET|CAPSULE)/gi)];
+
+		if (containerMatches.length > 0 && unitMatches.length > 0) {
+			// Find the container count that's not "1" (skip outer packaging like "1 BOX")
+			const containerCount =
+				containerMatches.map((m) => parseInt(m[1], 10)).find((n) => n > 1) ||
+				parseInt(containerMatches[0][1], 10);
+
+			// Use the first unit count (usually the per-container amount)
+			const unitsPerContainer = parseInt(unitMatches[0][1], 10);
+
+			// Calculate total: containers * units per container
+			// Example: "6 BLISTER PACK in 1 BOX / 5 TABLET in 1 BLISTER" = 6 * 5 = 30
+			// Example: "30 POUCH in 1 BOX / 1 TABLET in 1 POUCH" = 30 * 1 = 30
+			// Only use calculation if it makes sense (container count > 1 and reasonable product)
+			if (containerCount > 1 && containerCount * unitsPerContainer <= 10000) {
+				return containerCount * unitsPerContainer;
+			}
+		}
+
+		// If multiple unit matches, return the largest (likely the total)
+		if (allUnitMatches.length > 1) {
+			return Math.max(...allUnitMatches);
+		}
+		// Single match - return it
+		return allUnitMatches[0];
+	}
+
+	// Priority 2: If no unit count found, this is likely an invalid/malformed description
+	// Don't guess - return a safe default and log a warning
+	console.warn('[FDA] Could not extract package size from description:', description);
+	return 1; // Safe default - caller should handle this
 }
 
 // Helper to infer package type from description
@@ -75,7 +114,7 @@ function isNDCActive(result: FDANDCResponse['results'][0]): boolean {
 // Package NDCs (11 digits): 5-3-3 format
 function formatNDCWithDashes(ndc: string): string {
 	const cleaned = ndc.replace(/[-\s]/g, '');
-	
+
 	if (cleaned.length === 8) {
 		// Product NDC: 5-3 format (e.g., 53943-080)
 		return `${cleaned.slice(0, 5)}-${cleaned.slice(5)}`;
@@ -86,7 +125,7 @@ function formatNDCWithDashes(ndc: string): string {
 		// Package NDC: 5-3-3 format (e.g., 53943-080-01)
 		return `${cleaned.slice(0, 5)}-${cleaned.slice(5, 8)}-${cleaned.slice(8)}`;
 	}
-	
+
 	// Return as-is if length doesn't match expected patterns
 	return ndc;
 }
@@ -105,20 +144,25 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 		const originalNDC = ndc.trim();
 		const isPackageNDC = normalizedNDC.length === 11;
 		const searchField = isPackageNDC ? 'package_ndc' : 'product_ndc';
-		console.log('[FDA] Looking up NDC:', { original: originalNDC, normalized: normalizedNDC, isPackageNDC, searchField });
-		
+		console.log('[FDA] Looking up NDC:', {
+			original: originalNDC,
+			normalized: normalizedNDC,
+			isPackageNDC,
+			searchField
+		});
+
 		// For product NDCs (8-9 digits), try original format first (FDA API prefers dashes)
 		// For package NDCs (11 digits), try normalized format first
 		let url: string;
 		let data: FDANDCResponse;
 		let result: FDANDCResponse['results'][0] | undefined;
-		
+
 		if (isPackageNDC) {
 			// Try normalized format first for package NDCs
 			url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
 			data = await fetchWithRetry<FDANDCResponse>(url);
 			result = data.results?.[0];
-			
+
 			// If not found, try original format (with dashes) if different
 			if (!result && originalNDC !== normalizedNDC) {
 				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${originalNDC}"&limit=1${apiKeyParam}`;
@@ -134,7 +178,7 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 				result = data.results?.[0];
 				console.log('[FDA] Original format result:', result ? 'found' : 'not found');
 			}
-			
+
 			// If original had no dashes or didn't work, try reconstructed format with dashes
 			if (!result) {
 				const dashedFormat = formatNDCWithDashes(normalizedNDC);
@@ -146,7 +190,7 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 					console.log('[FDA] Reconstructed dashed format result:', result ? 'found' : 'not found');
 				}
 			}
-			
+
 			// If not found, try normalized format as fallback (usually won't work but worth trying)
 			if (!result) {
 				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
@@ -162,7 +206,7 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 			url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${normalizedNDC}"&limit=1${apiKeyParam}`;
 			data = await fetchWithRetry<FDANDCResponse>(url);
 			result = data.results?.[0];
-			
+
 			// Also try original format for product_ndc
 			if (!result && originalNDC !== normalizedNDC) {
 				url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${originalNDC}"&limit=1${apiKeyParam}`;
@@ -200,14 +244,17 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 }
 
 // Helper to convert FDA result to NDCPackage
-function resultToNDCPackage(result: FDANDCResponse['results'][0], packaging?: FDANDCResponse['results'][0]['packaging'][0]): NDCPackage | null {
+function resultToNDCPackage(
+	result: FDANDCResponse['results'][0],
+	packaging?: FDANDCResponse['results'][0]['packaging'][0]
+): NDCPackage | null {
 	const packageNDC = packaging?.package_ndc || result.package_ndc || result.product_ndc;
 	if (!packageNDC) return null;
 
 	const description = packaging?.description || result.package_description || '';
 	const packageSize = extractPackageSize(description);
 	const packageType = inferPackageType(description);
-	
+
 	// Check if this specific package is active
 	let isActive = true;
 	if (packaging?.marketing_end_date) {
@@ -217,7 +264,7 @@ function resultToNDCPackage(result: FDANDCResponse['results'][0], packaging?: FD
 		// Fallback to product-level check
 		isActive = isNDCActive(result);
 	}
-	
+
 	const manufacturer = result.labeler_name || result.proprietary_name || 'Unknown';
 
 	return {
@@ -272,7 +319,11 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 			}
 		}
 
-		console.log('[FDA] Extracted unique packages:', packages.length, packages.slice(0, 5).map(p => p.ndc));
+		console.log(
+			'[FDA] Extracted unique packages:',
+			packages.length,
+			packages.slice(0, 5).map((p) => p.ndc)
+		);
 
 		if (packages.length > 0) {
 			cache.set(cacheKey, packages);

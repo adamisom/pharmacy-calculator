@@ -1,7 +1,9 @@
 # Quick Smoke Test
 
 ## Test 1: Basic Forward Calculation
+
 **Input:**
+
 - Drug: `aspirin`
 - SIG: `1 tablet twice daily`
 - Days: `30`
@@ -15,7 +17,9 @@
 ---
 
 ## Test 2: Direct NDC Input
+
 **Input:**
+
 - Drug/NDC: `53943-080` (product NDC format - verified to work with FDA API)
 - SIG: `2 tablets daily`
 - Days: `30`
@@ -31,7 +35,9 @@
 ---
 
 ## Test 3: Reverse Calculation
+
 **Input:**
+
 - Drug: `ibuprofen`
 - SIG: `1 tablet 3 times daily`
 - Days: (leave empty)
@@ -46,7 +52,9 @@
 ---
 
 ## Test 4: Error Handling - Invalid Drug
+
 **Input:**
+
 - Drug: `xyzabc123nonexistent`
 - SIG: `1 tablet daily`
 - Days: `30`
@@ -60,7 +68,9 @@
 ---
 
 ## Test 5: Error Handling - Invalid Input
+
 **Input:**
+
 - Empty drug name
 - Empty SIG
 - Days: `0`
@@ -74,9 +84,11 @@
 ---
 
 ## Test 6: Overfill Warning Display
+
 **Input:** Any valid calculation that results in >10% overfill
 
 **Guidance for constructing test inputs:**
+
 - Use a small quantity needed with a drug that has large package sizes. Examples:
   - Drug: `aspirin`, SIG: `1 tablet daily`, Days: `7` (needs 7 tablets) - works well
   - Drug: `metformin`, SIG: `1 tablet daily`, Days: `5` (needs 5 tablets) - metformin often has large packages (100, 180, 500+ tablets)
@@ -86,10 +98,12 @@
 ---
 
 ## Test 7: Inactive NDC Warning Display
+
 **Input:** Any valid calculation that results in inactive NDCs
 
 **Guidance for constructing test inputs:**
-- An inactive NDC is a medication package that has passed its marketing end date in the FDA database. This means the manufacturer has discontinued marketing that specific package size/format. The system automatically shows warnings (red badge) for any recommended NDCs that are marked as inactive. 
+
+- An inactive NDC is a medication package that has passed its marketing end date in the FDA database. This means the manufacturer has discontinued marketing that specific package size/format. The system automatically shows warnings (red badge) for any recommended NDCs that are marked as inactive.
 
   **To find inactive NDCs for testing:**
   1. Search for older or less common drugs (e.g., `phentermine`, `warfarin`, `digoxin`)
@@ -103,6 +117,7 @@
 ---
 
 ## Test 8: JSON Output
+
 **Input:** Any valid calculation
 
 **Expected:** "Show JSON" button toggles formatted JSON output
@@ -116,4 +131,3 @@
 ## Longer Testing
 
 See [TESTING.md](./TESTING.md) for comprehensive manual testing scenarios covering all PRD requirements.
-

@@ -29,7 +29,8 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
+		pattern:
+			/(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
 		extractor: (match) => ({
 			dosesPerDay: 3,
 			unitsPerDose: parseInt(match[1], 10),
@@ -37,7 +38,8 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:four|4)\s+times\s+daily|qid/i,
+		pattern:
+			/(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:four|4)\s+times\s+daily|qid/i,
 		extractor: (match) => ({
 			dosesPerDay: 4,
 			unitsPerDose: parseInt(match[1], 10),
@@ -80,7 +82,8 @@ const SIG_PATTERNS: SIGPattern[] = [
 		})
 	},
 	{
-		pattern: /(\d+)\s*(?:capsule|capsules|caps)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
+		pattern:
+			/(\d+)\s*(?:capsule|capsules|caps)\s+(?:by\s+mouth\s+)?(?:three|3)\s+times\s+daily|tid/i,
 		extractor: (match) => ({
 			dosesPerDay: 3,
 			unitsPerDose: parseInt(match[1], 10),
@@ -107,7 +110,8 @@ const SIG_PATTERNS: SIGPattern[] = [
 
 	// Pattern: "X-Y [unit] [frequency]" (use higher value)
 	{
-		pattern: /(\d+)[-\s]+(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:once\s+)?daily|qd/i,
+		pattern:
+			/(\d+)[-\s]+(\d+)\s*(?:tablet|tablets|tab|tabs)\s+(?:by\s+mouth\s+)?(?:once\s+)?daily|qd/i,
 		extractor: (match) => ({
 			dosesPerDay: 1,
 			unitsPerDose: Math.max(parseInt(match[1], 10), parseInt(match[2], 10)),
@@ -135,7 +139,8 @@ const SIG_PATTERNS: SIGPattern[] = [
 
 	// Pattern: "as needed" / "PRN" (conservative: 1 dose per day)
 	{
-		pattern: /(\d+)\s*(?:tablet|tablets|tab|tabs|capsule|capsules|caps)\s+(?:as\s+needed|prn|as\s+directed)/i,
+		pattern:
+			/(\d+)\s*(?:tablet|tablets|tab|tabs|capsule|capsules|caps)\s+(?:as\s+needed|prn|as\s+directed)/i,
 		extractor: (match) => ({
 			dosesPerDay: 1, // Conservative estimate
 			unitsPerDose: parseInt(match[1], 10),

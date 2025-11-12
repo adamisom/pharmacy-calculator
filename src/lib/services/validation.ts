@@ -20,7 +20,7 @@ export function validatePrescriptionInput(input: PrescriptionInput): ValidationR
 	// Days supply validation
 	// Treat 0 as null for reverse calculation scenarios
 	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
-	
+
 	if (effectiveDaysSupply !== null) {
 		if (typeof effectiveDaysSupply !== 'number' || isNaN(effectiveDaysSupply)) {
 			errors.push('Days supply must be a valid number');

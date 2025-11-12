@@ -33,9 +33,12 @@ export async function searchDrugName(
 		const data = await fetchWithRetry<RxNormApproximateTermResult>(url);
 		console.log('[RxNorm] Response:', JSON.stringify(data, null, 2));
 
-		const candidate = data.approximateGroup?.candidate?.[0];
+		// Find first candidate that has both rxcui and name
+		const candidates = data.approximateGroup?.candidate || [];
+		const candidate = candidates.find((c) => c.rxcui && c.name);
+
 		if (!candidate?.rxcui || !candidate?.name) {
-			console.log('[RxNorm] No candidate found for:', drugName);
+			console.log('[RxNorm] No candidate with name found for:', drugName);
 			return null;
 		}
 

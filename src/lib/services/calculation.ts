@@ -49,7 +49,7 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		console.log('[Calculation] Normalized to:', normalized);
 		rxcui = normalized.rxcui;
 		drugName = normalized.name;
-		
+
 		// Try RxNorm first
 		const ndcs = await getNDCsForRxCUI(rxcui);
 		console.log('[Calculation] Found NDCs from RxNorm:', ndcs.length);
@@ -80,7 +80,7 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	// 5. Calculate quantity or days supply
 	// Treat 0 as null for reverse calculation scenarios
 	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
-	
+
 	let totalQuantityNeeded: number;
 	let daysSupply: number;
 
