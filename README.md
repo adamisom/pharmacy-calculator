@@ -19,7 +19,7 @@ An AI-accelerated tool designed to enhance the accuracy of prescription fulfillm
 - **Language**: TypeScript 5.x
 - **Styling**: Tailwind CSS 3.x
 - **Build Tool**: Vite 7.x
-- **Testing**: Vitest, Playwright
+- **Testing**: Vitest
 
 ## Getting Started
 
@@ -81,19 +81,7 @@ npm run preview
 
 ### Testing
 
-Run unit tests:
-
-```sh
-npm run test:unit
-```
-
-Run end-to-end tests:
-
-```sh
-npm run test:e2e
-```
-
-Run all tests:
+Run tests:
 
 ```sh
 npm test

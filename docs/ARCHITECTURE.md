@@ -268,7 +268,7 @@ Main orchestration service that:
 - **Language**: TypeScript 5.x
 - **Styling**: Tailwind CSS 3.x
 - **Build Tool**: Vite 7.x
-- **Testing**: Vitest, Playwright
+- **Testing**: Vitest
 - **Deployment**: GCP (Cloud Run or App Engine)
 
 ## Error Handling Strategy
@@ -405,12 +405,11 @@ All error messages follow these principles:
 - Service layer orchestration
 - End-to-end API route testing
 
-### E2E Tests
+### Integration Tests
 
-- Complete user workflows
-- Form submission
-- Error scenarios
-- UI interactions
+- API route testing
+- Service layer integration
+- End-to-end calculation flows
 
 ### Manual Testing
 
