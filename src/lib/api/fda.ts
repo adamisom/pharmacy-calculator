@@ -113,6 +113,55 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 	}
 }
 
+export async function searchNDCsByDrugName(drugName: string): Promise<string[]> {
+	const cacheKey = `fda:search:${drugName.toLowerCase().trim()}`;
+	const cached = cache.get<string[]>(cacheKey);
+	if (cached) {
+		console.log('[FDA] NDCs from cache for drug:', drugName, 'count:', cached.length);
+		return cached;
+	}
+
+	try {
+		const apiKey = getFDAApiKey();
+		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
+		// Search by non-proprietary name (generic name) or proprietary name (brand name)
+		const url = `${API_CONFIG.FDA_BASE_URL}?search=(non_proprietary_name:"${encodeURIComponent(drugName)}" OR proprietary_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
+		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
+
+		const data = await fetchWithRetry<FDANDCResponse>(url);
+		console.log('[FDA] Search response count:', data.results?.length || 0);
+
+		const ndcs: string[] = [];
+		if (data.results) {
+			for (const result of data.results) {
+				// Extract NDCs from product_ndc or package_ndc
+				if (result.product_ndc) {
+					ndcs.push(normalizeNDC(result.product_ndc));
+				}
+				if (result.packaging) {
+					for (const pkg of result.packaging) {
+						if (pkg.package_ndc) {
+							ndcs.push(normalizeNDC(pkg.package_ndc));
+						}
+					}
+				}
+			}
+		}
+
+		// Remove duplicates
+		const uniqueNDCs = [...new Set(ndcs)];
+		console.log('[FDA] Extracted unique NDCs:', uniqueNDCs.length, uniqueNDCs.slice(0, 10));
+
+		if (uniqueNDCs.length > 0) {
+			cache.set(cacheKey, uniqueNDCs);
+		}
+		return uniqueNDCs;
+	} catch (err) {
+		console.error('[FDA] Error searching for drug:', drugName, err);
+		return [];
+	}
+}
+
 export async function getMultipleNDCInfo(ndcs: string[]): Promise<NDCPackage[]> {
 	// Fetch in parallel with limited concurrency to avoid overwhelming API
 	const results = await Promise.allSettled(ndcs.map((ndc) => getNDCPackageInfo(ndc)));

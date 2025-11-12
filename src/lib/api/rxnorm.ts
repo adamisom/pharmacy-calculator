@@ -51,19 +51,38 @@ export async function searchDrugName(
 	}
 }
 
-export async function getNDCsForRxCUI(rxcui: string): Promise<string[]> {
+export async function getNDCsForRxCUI(rxcui: string, forceRefresh = false): Promise<string[]> {
 	const cacheKey = `rxnorm:ndcs:${rxcui}`;
 	const cached = cache.get<string[]>(cacheKey);
-	if (cached) return cached;
+
+	// If cached and not forcing refresh, return it (even if empty - might be valid)
+	if (cached && !forceRefresh) {
+		console.log('[RxNorm] NDCs from cache for RxCUI:', rxcui, 'count:', cached.length);
+		// If cache has 0, invalidate and retry once
+		if (cached.length === 0) {
+			console.log('[RxNorm] Cache has 0 NDCs, invalidating and retrying...');
+			cache.delete(cacheKey);
+			return getNDCsForRxCUI(rxcui, true);
+		}
+		return cached;
+	}
 
 	try {
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/rxcui/${rxcui}/ndcs.json`;
+		console.log('[RxNorm] Fetching NDCs for RxCUI:', rxcui, 'URL:', url);
 		const data = await fetchWithRetry<RxNormNDCResult>(url);
+		console.log('[RxNorm] NDC response:', JSON.stringify(data, null, 2));
 
 		const ndcs = data.ndcGroup?.ndcList?.ndc || [];
-		cache.set(cacheKey, ndcs);
+		console.log('[RxNorm] Extracted NDCs:', ndcs.length, ndcs.slice(0, 5));
+
+		// Only cache if we got results (don't cache empty arrays to allow retries)
+		if (ndcs.length > 0) {
+			cache.set(cacheKey, ndcs);
+		}
 		return ndcs;
-	} catch {
+	} catch (err) {
+		console.error('[RxNorm] Error fetching NDCs for RxCUI:', rxcui, err);
 		throw getGenericError(
 			`Failed to get NDCs for RxCUI ${rxcui}`,
 			'Unable to retrieve package information. Please try again.'

@@ -1,7 +1,7 @@
 import type { PrescriptionInput, CalculationResult } from '$lib/types';
 import { normalizeDrugInput, isNDCFormat, normalizeNDC } from '$lib/api/rxnorm';
 import { getNDCsForRxCUI } from '$lib/api/rxnorm';
-import { getMultipleNDCInfo } from '$lib/api/fda';
+import { getMultipleNDCInfo, searchNDCsByDrugName } from '$lib/api/fda';
 import { parseSIGWithFallback } from '$lib/parsers/sig';
 import { calculateTotalQuantityNeeded } from '$lib/calculators/quantity';
 import { calculateDaysSupplyFromQuantity } from '$lib/calculators/reverse';
@@ -30,15 +30,27 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		ndcs = [normalizedNDC];
 	} else {
 		// Drug name input - use RxNorm
+		console.log('[Calculation] Normalizing drug input:', input.drugNameOrNDC);
 		const normalized = await normalizeDrugInput(input.drugNameOrNDC);
 		if (!normalized) {
+			console.error('[Calculation] Drug normalization failed for:', input.drugNameOrNDC);
 			throw getDrugNotFoundError();
 		}
+		console.log('[Calculation] Normalized to:', normalized);
 		rxcui = normalized.rxcui;
 		drugName = normalized.name;
 		ndcs = await getNDCsForRxCUI(rxcui);
+		console.log('[Calculation] Found NDCs from RxNorm:', ndcs.length);
+
+		// Fallback: if RxNorm has no NDCs, search FDA directly by drug name
+		if (ndcs.length === 0) {
+			console.log('[Calculation] RxNorm has no NDCs, trying FDA search by drug name...');
+			ndcs = await searchNDCsByDrugName(drugName);
+			console.log('[Calculation] Found NDCs from FDA search:', ndcs.length);
+		}
 
 		if (ndcs.length === 0) {
+			console.error('[Calculation] No NDCs found for drug:', drugName, 'RxCUI:', rxcui);
 			throw getDrugNotFoundError();
 		}
 	}

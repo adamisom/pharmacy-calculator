@@ -40,6 +40,10 @@ class Cache {
 		}
 		return true;
 	}
+
+	delete(key: string): void {
+		this.store.delete(key);
+	}
 }
 
 export const cache = new Cache();
