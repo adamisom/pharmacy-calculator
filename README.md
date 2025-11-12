@@ -1,22 +1,60 @@
-# sv
+# NDC Packaging & Quantity Calculator
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+An AI-accelerated tool designed to enhance the accuracy of prescription fulfillment in pharmacy systems by matching prescriptions with valid National Drug Codes (NDCs) and calculating correct dispense quantities.
 
-## Creating a project
+## Features
 
-If you're seeing this, you've probably already done this step. Congrats!
+- **Drug Normalization**: Automatically match drug names to RxCUI using RxNorm API
+- **NDC Lookup**: Retrieve valid NDCs and package information from FDA NDC Directory
+- **Quantity Calculation**: Calculate total quantity needed based on SIG and days supply
+- **NDC Selection**: Algorithm selects optimal NDC packages that minimize overfill
+- **Reverse Calculation**: Calculate days supply from total quantity and SIG
+- **SIG Parsing**: Parse common prescription instruction patterns
+- **Warning System**: Flag inactive NDCs, overfills, and underfills
+- **User-Friendly Errors**: Clear, actionable error messages for healthcare professionals
+
+## Tech Stack
+
+- **Framework**: SvelteKit 2.x
+- **Language**: TypeScript 5.x
+- **Styling**: Tailwind CSS 3.x
+- **Build Tool**: Vite 7.x
+- **Testing**: Vitest, Playwright
+
+## Getting Started
+
+### Prerequisites
+
+- Node.js 18+ and npm
+- (Optional) FDA API key for higher rate limits - get one at [open.fda.gov](https://open.fda.gov/apis/authentication/)
+
+### Installation
+
+1. Clone the repository:
 
 ```sh
-# create a new project in the current directory
-npx sv create
-
-# create a new project in my-app
-npx sv create my-app
+git clone <repository-url>
+cd ndc-calculator
 ```
 
-## Developing
+2. Install dependencies:
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+```sh
+npm install
+```
+
+3. (Optional) Set up environment variables:
+
+```sh
+# Create .env file
+echo "VITE_FDA_API_KEY=your_key_here" > .env
+```
+
+**Note**: The FDA API key is optional. The app works without it for low-volume usage. The key only increases rate limits (from 1,000 to 120,000 requests per day).
+
+### Development
+
+Start the development server:
 
 ```sh
 npm run dev
@@ -25,14 +63,129 @@ npm run dev
 npm run dev -- --open
 ```
 
-## Building
+The app will be available at `http://localhost:5173`
 
-To create a production version of your app:
+### Building
+
+To create a production build:
 
 ```sh
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+Preview the production build:
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+npm run preview
+```
+
+### Testing
+
+Run unit tests:
+
+```sh
+npm run test:unit
+```
+
+Run end-to-end tests:
+
+```sh
+npm run test:e2e
+```
+
+Run all tests:
+
+```sh
+npm test
+```
+
+## Project Structure
+
+```
+src/
+├── lib/
+│   ├── api/           # API clients (RxNorm, FDA, cache)
+│   ├── calculators/   # Calculation logic
+│   ├── components/    # Svelte components
+│   ├── parsers/       # SIG parsing
+│   ├── services/      # Business logic services
+│   ├── utils/         # Utility functions
+│   ├── config.ts      # Configuration
+│   └── types.ts       # TypeScript types
+├── routes/
+│   ├── api/           # API endpoints
+│   └── +page.svelte   # Main page
+└── ...
+
+docs/
+├── PRD.md             # Product Requirements Document
+├── ARCHITECTURE.md    # Architecture documentation
+└── TASK_LIST.md       # Implementation task list
+```
+
+## Usage
+
+1. Enter a drug name (e.g., "Aspirin") or NDC code (e.g., "12345-678-90")
+2. Enter prescription instructions (SIG), e.g., "1 tablet twice daily"
+3. Enter days supply OR total quantity (for reverse calculation)
+4. (Optional) Provide manual override for doses per day if SIG parsing fails
+5. Click "Calculate" to get NDC recommendations
+
+## API Integration
+
+### RxNorm API
+
+- **Base URL**: `https://rxnav.nlm.nih.gov/REST`
+- **Authentication**: None required
+- Used for drug name normalization and NDC lookup
+
+### FDA NDC Directory API
+
+- **Base URL**: `https://api.fda.gov/drug/ndc.json`
+- **Authentication**: Optional API key
+- Used for package information and active/inactive status
+
+## Documentation
+
+- **[PRD](./docs/PRD.md)**: Product Requirements Document with detailed specifications
+- **[Architecture](./docs/ARCHITECTURE.md)**: System architecture and design decisions
+- **[Task List](./docs/TASK_LIST.md)**: Implementation guide with code samples
+
+## Deployment
+
+### Google Cloud Platform
+
+The app is designed to deploy on GCP using either:
+
+- **Cloud Run**: Containerized deployment with auto-scaling
+- **App Engine**: Managed platform deployment
+
+See the [Architecture document](./docs/ARCHITECTURE.md) for deployment details.
+
+## Contributing
+
+1. Follow the implementation guide in [TASK_LIST.md](./docs/TASK_LIST.md)
+2. Ensure all tests pass
+3. Follow TypeScript and SvelteKit best practices
+4. Keep error messages user-friendly for healthcare professionals
+
+## Future Work
+
+### Documentation
+
+The following documentation is planned for future releases:
+
+- **User Guide** (`docs/USER_GUIDE.md`): Step-by-step usage instructions for pharmacists and pharmacy technicians, including screenshots, common scenarios, and FAQ
+- **Deployment Guide** (`docs/DEPLOYMENT.md`): Detailed GCP deployment instructions, environment setup, Cloud Run vs App Engine comparison, and monitoring configuration
+- **API Documentation** (`docs/API.md`): Detailed endpoint documentation with request/response formats, error codes, and integration examples
+- **Troubleshooting Guide** (`docs/TROUBLESHOOTING.md`): Common issues and solutions, debugging tips, and performance optimization
+- **Developer Guide** (`docs/DEVELOPER.md`): Setup instructions for new developers, code style guidelines, and contribution workflow
+- **Testing Guide** (`docs/TESTING.md`): Testing practices, test data management, mocking strategies, and coverage requirements
+
+## License
+
+[Add your license here]
+
+## Support
+
+For questions or issues, please refer to the documentation or create an issue in the repository.
