@@ -123,6 +123,91 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 	}
 }
 
+// Helper to convert FDA result to NDCPackage
+function resultToNDCPackage(result: FDANDCResponse['results'][0], packaging?: FDANDCResponse['results'][0]['packaging'][0]): NDCPackage | null {
+	const packageNDC = packaging?.package_ndc || result.package_ndc || result.product_ndc;
+	if (!packageNDC) return null;
+
+	const description = packaging?.description || result.package_description || '';
+	const packageSize = extractPackageSize(description);
+	const packageType = inferPackageType(description);
+	
+	// Check if this specific package is active
+	let isActive = true;
+	if (packaging?.marketing_end_date) {
+		const endDate = new Date(packaging.marketing_end_date);
+		isActive = endDate >= new Date();
+	} else {
+		// Fallback to product-level check
+		isActive = isNDCActive(result);
+	}
+	
+	const manufacturer = result.labeler_name || result.proprietary_name || 'Unknown';
+
+	return {
+		ndc: normalizeNDC(packageNDC),
+		packageSize,
+		packageType,
+		isActive,
+		manufacturer
+	};
+}
+
+export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDCPackage[]> {
+	const cacheKey = `fda:packages:${drugName.toLowerCase().trim()}`;
+	const cached = cache.get<NDCPackage[]>(cacheKey);
+	if (cached) {
+		console.log('[FDA] Packages from cache for drug:', drugName, 'count:', cached.length);
+		return cached;
+	}
+
+	try {
+		const apiKey = getFDAApiKey();
+		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
+		// Search by generic_name (generic name) or brand_name (brand name)
+		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
+		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
+
+		const data = await fetchWithRetry<FDANDCResponse>(url);
+		console.log('[FDA] Search response count:', data.results?.length || 0);
+
+		const packages: NDCPackage[] = [];
+		const seenNDCs = new Set<string>();
+
+		if (data.results) {
+			for (const result of data.results) {
+				// If result has packaging array, create a package for each packaging item
+				if (result.packaging && result.packaging.length > 0) {
+					for (const pkg of result.packaging) {
+						const packageInfo = resultToNDCPackage(result, pkg);
+						if (packageInfo && !seenNDCs.has(packageInfo.ndc)) {
+							seenNDCs.add(packageInfo.ndc);
+							packages.push(packageInfo);
+						}
+					}
+				} else {
+					// If no packaging array, use product-level data
+					const packageInfo = resultToNDCPackage(result);
+					if (packageInfo && !seenNDCs.has(packageInfo.ndc)) {
+						seenNDCs.add(packageInfo.ndc);
+						packages.push(packageInfo);
+					}
+				}
+			}
+		}
+
+		console.log('[FDA] Extracted unique packages:', packages.length, packages.slice(0, 5).map(p => p.ndc));
+
+		if (packages.length > 0) {
+			cache.set(cacheKey, packages);
+		}
+		return packages;
+	} catch (err) {
+		console.error('[FDA] Error searching for drug:', drugName, err);
+		return [];
+	}
+}
+
 export async function searchNDCsByDrugName(drugName: string): Promise<string[]> {
 	const cacheKey = `fda:search:${drugName.toLowerCase().trim()}`;
 	const cached = cache.get<string[]>(cacheKey);

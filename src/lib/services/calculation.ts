@@ -1,7 +1,7 @@
-import type { PrescriptionInput, CalculationResult } from '$lib/types';
+import type { PrescriptionInput, CalculationResult, NDCPackage } from '$lib/types';
 import { normalizeDrugInput, isNDCFormat, normalizeNDC } from '$lib/api/rxnorm';
 import { getNDCsForRxCUI } from '$lib/api/rxnorm';
-import { getMultipleNDCInfo, searchNDCsByDrugName } from '$lib/api/fda';
+import { getMultipleNDCInfo, searchNDCPackagesByDrugName } from '$lib/api/fda';
 import { parseSIGWithFallback } from '$lib/parsers/sig';
 import { calculateTotalQuantityNeeded } from '$lib/calculators/quantity';
 import { calculateDaysSupplyFromQuantity } from '$lib/calculators/reverse';
@@ -17,17 +17,25 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		throw getGenericError('Validation failed', validation.errors.join('. '));
 	}
 
-	// 2. Normalize drug input
+	// 2. Normalize drug input and get package info
 	let rxcui: string;
 	let drugName: string;
-	let ndcs: string[];
+	let packages: NDCPackage[];
 
 	if (isNDCFormat(input.drugNameOrNDC)) {
 		// Direct NDC input - skip RxNorm lookup
 		const normalizedNDC = normalizeNDC(input.drugNameOrNDC);
 		rxcui = 'N/A';
 		drugName = `NDC: ${normalizedNDC}`;
-		ndcs = [normalizedNDC];
+		// Get package info for single NDC
+		const packageInfo = await getMultipleNDCInfo([normalizedNDC]);
+		if (packageInfo.length === 0) {
+			throw getGenericError(
+				'No package information found',
+				'Unable to retrieve package information for this NDC. Please verify the NDC.'
+			);
+		}
+		packages = packageInfo;
 	} else {
 		// Drug name input - use RxNorm
 		console.log('[Calculation] Normalizing drug input:', input.drugNameOrNDC);
@@ -39,29 +47,29 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		console.log('[Calculation] Normalized to:', normalized);
 		rxcui = normalized.rxcui;
 		drugName = normalized.name;
-		ndcs = await getNDCsForRxCUI(rxcui);
+		
+		// Try RxNorm first
+		const ndcs = await getNDCsForRxCUI(rxcui);
 		console.log('[Calculation] Found NDCs from RxNorm:', ndcs.length);
 
-		// Fallback: if RxNorm has no NDCs, search FDA directly by drug name
-		if (ndcs.length === 0) {
+		if (ndcs.length > 0) {
+			// Get package info from FDA for RxNorm NDCs
+			packages = await getMultipleNDCInfo(ndcs);
+			console.log('[Calculation] Found packages from FDA for RxNorm NDCs:', packages.length);
+		} else {
+			// Fallback: if RxNorm has no NDCs, search FDA directly by drug name
 			console.log('[Calculation] RxNorm has no NDCs, trying FDA search by drug name...');
-			ndcs = await searchNDCsByDrugName(drugName);
-			console.log('[Calculation] Found NDCs from FDA search:', ndcs.length);
+			packages = await searchNDCPackagesByDrugName(drugName);
+			console.log('[Calculation] Found packages from FDA search:', packages.length);
 		}
 
-		if (ndcs.length === 0) {
-			console.error('[Calculation] No NDCs found for drug:', drugName, 'RxCUI:', rxcui);
-			throw getDrugNotFoundError();
+		if (packages.length === 0) {
+			console.error('[Calculation] No packages found for drug:', drugName, 'RxCUI:', rxcui);
+			throw getGenericError(
+				'No package information found',
+				'Unable to retrieve package information for this medication. Please verify the drug name.'
+			);
 		}
-	}
-
-	// 3. Get package info from FDA
-	const packages = await getMultipleNDCInfo(ndcs);
-	if (packages.length === 0) {
-		throw getGenericError(
-			'No package information found',
-			'Unable to retrieve package information for this medication. Please verify the NDC or drug name.'
-		);
 	}
 
 	// 4. Parse SIG
