@@ -53,6 +53,10 @@
 
 **Expected:** User-friendly error message
 
+**Result:** ✅ PASSED
+
+![Test 4 Result - Invalid Drug Error](./test-results/test-4-invalid-drug.png)
+
 ---
 
 ## Test 5: Error Handling - Invalid Input
@@ -63,19 +67,21 @@
 
 **Expected:** Validation errors displayed, form prevents submission
 
+**Result:** ✅ PASSED
+
+![Test 5 Result - Form Validation Errors](./test-results/test-5-form-error.png)
+
 ---
 
 ## Test 6: Warning Display
 **Input:** Any valid calculation that results in inactive NDCs or >10% overfill
 
 **Guidance for constructing test inputs:**
-- **Overfill warning (>10%):** Use a small quantity needed with a drug that has large package sizes. For example:
-  - Drug: `aspirin`
-  - SIG: `1 tablet daily`
-  - Days: `7` (needs 7 tablets)
-  - This will likely trigger overfill warnings if only large packages (e.g., 60+ tablets) are available
+- **Overfill warning (>10%):** Use a small quantity needed with a drug that has large package sizes. Examples:
+  - Drug: `aspirin`, SIG: `1 tablet daily`, Days: `7` (needs 7 tablets) - works well
+  - Drug: `acetaminophen` or `ibuprofen`, SIG: `1 tablet daily`, Days: `5` (needs 5 tablets) - alternative options
   
-- **Inactive NDC warning:** The system automatically shows warnings for any recommended NDCs that are marked as inactive in the FDA database. This depends on which NDCs are returned for a given drug.
+- **Inactive NDC warning:** An inactive NDC is a medication package that has passed its marketing end date in the FDA database. This means the manufacturer has discontinued marketing that specific package size/format. The system automatically shows warnings (red badge) for any recommended NDCs that are marked as inactive. Finding inactive NDCs depends on which NDCs are returned for a given drug - older or discontinued products may appear in search results but be marked inactive.
 
 **Expected:** Warning badges displayed (yellow for overfill, red for inactive) on affected NDC recommendations
 
@@ -85,4 +91,8 @@
 **Input:** Any valid calculation
 
 **Expected:** "Show JSON" button toggles formatted JSON output
+
+**Result:** ✅ PASSED
+
+![Test 7 Result - JSON Output](./test-results/test-7-JSON-output.png)
 
