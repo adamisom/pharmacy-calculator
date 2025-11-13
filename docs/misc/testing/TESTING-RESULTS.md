@@ -147,6 +147,86 @@
 
 ---
 
+## Test 9: Liquid Medication - ML-based Calculation
+
+**Input:**
+
+- Drug: `amoxicillin` (or any liquid medication)
+- SIG: `5 ml twice daily`
+- Days: `10`
+
+**Expected:** 
+- System parses "ml" unit type correctly
+- Calculates total quantity: 100 ml (5 ml × 2 doses/day × 10 days)
+- Shows NDC recommendations with ml-based package sizes
+- Package sizes displayed in milliliters
+
+**Result:** ⏳ PENDING
+
+**Note:** Tests the new liquid medication SIG parsing and ml-based quantity calculations.
+
+---
+
+## Test 10: Liquid Medication - Unit Conversion (Teaspoons to ML)
+
+**Input:**
+
+- Drug: `amoxicillin` (or any liquid medication)
+- SIG: `1 teaspoon twice daily`
+- Days: `10`
+
+**Expected:**
+- System automatically converts teaspoons to ml (1 tsp = 5 ml)
+- Calculates total quantity: 100 ml (5 ml × 2 doses/day × 10 days)
+- Shows NDC recommendations with ml-based package sizes
+- Conversion happens transparently during SIG parsing
+
+**Result:** ⏳ PENDING
+
+**Note:** Tests automatic unit conversion from teaspoons to milliliters.
+
+---
+
+## Test 11: Insulin - Units-based Calculation
+
+**Input:**
+
+- Drug: `insulin glargine` (or `insulin`)
+- SIG: `20 units at bedtime`
+- Days: `30`
+
+**Expected:**
+- System parses "units" unit type correctly
+- Recognizes "at bedtime" pattern (1 dose per day)
+- Calculates total quantity: 600 units (20 units × 1 dose/day × 30 days)
+- Shows NDC recommendations with unit-based package sizes (vials typically contain 1000 units)
+
+**Result:** ⏳ PENDING
+
+**Note:** Tests the new insulin SIG parsing with meal-time and bedtime patterns.
+
+---
+
+## Test 12: Inhaler - Puffs-based Calculation
+
+**Input:**
+
+- Drug: `albuterol` (or any inhaler medication)
+- SIG: `2 puffs twice daily`
+- Days: `30`
+
+**Expected:**
+- System parses "puffs" unit type correctly
+- Calculates total quantity: 120 puffs (2 puffs × 2 doses/day × 30 days)
+- Shows NDC recommendations with puff/actuation-based package sizes
+- Package sizes displayed in puffs or actuations
+
+**Result:** ⏳ PENDING
+
+**Note:** Tests the new inhaler SIG parsing and puff-based quantity calculations.
+
+---
+
 ## Longer Testing
 
 See [TESTING.md](./TESTING.md) for comprehensive manual testing scenarios covering all PRD requirements.
