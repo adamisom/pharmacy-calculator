@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { PrescriptionInput } from '$lib/types';
 	import LoadingSpinner from './LoadingSpinner.svelte';
+	import { TEST_SIGS, TEST_DAYS_SUPPLY, TEST_QUANTITIES } from '$lib/utils/test-data';
 
 	export let onSubmit: (input: PrescriptionInput) => Promise<void>;
 	export let loading: boolean = false;
@@ -11,6 +12,9 @@
 	export let daysSupply: number | '' = '';
 	export let totalQuantity: number | '' = '';
 	export let manualDosesPerDay: number | '' = '';
+
+	const DRUG_STORAGE_KEY = 'ndc-calculator-drug-history';
+	let drugHistory: string[] = [];
 
 	let errors: string[] = [];
 	let loadingMessage = 'Calculating...';
@@ -33,7 +37,32 @@
 
 	$: updateLoadingMessage(loading);
 
+	function loadDrugHistory() {
+		if (typeof window === 'undefined') return;
+		try {
+			const stored = localStorage.getItem(DRUG_STORAGE_KEY);
+			if (stored) {
+				drugHistory = JSON.parse(stored);
+			}
+		} catch {
+			// Ignore storage errors
+		}
+	}
+
+	function saveDrugToHistory(drug: string) {
+		if (typeof window === 'undefined' || !drug.trim()) return;
+		try {
+			const trimmed = drug.trim();
+			// Remove if already exists, then add to front
+			drugHistory = [trimmed, ...drugHistory.filter((d) => d !== trimmed)].slice(0, 20); // Keep last 20
+			localStorage.setItem(DRUG_STORAGE_KEY, JSON.stringify(drugHistory));
+		} catch {
+			// Ignore storage errors
+		}
+	}
+
 	onMount(() => {
+		loadDrugHistory();
 		return () => {
 			if (loadingTimeout) clearTimeout(loadingTimeout);
 		};
@@ -52,8 +81,14 @@
 		if (daysSupply === '' && totalQuantity === '') {
 			errors.push('Either days supply or total quantity must be provided');
 		}
+		if (daysSupply !== '' && totalQuantity !== '') {
+			errors.push('Please provide either days supply OR total quantity, not both');
+		}
 
 		if (errors.length > 0) return;
+
+		// Save drug to history
+		saveDrugToHistory(drugNameOrNDC);
 
 		const input: PrescriptionInput = {
 			drugNameOrNDC: drugNameOrNDC.trim(),
@@ -79,20 +114,42 @@
 			type="text"
 			bind:value={drugNameOrNDC}
 			disabled={loading}
+			list="drug-list"
 			class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			placeholder="e.g., Aspirin or 12345-678-90"
 		/>
+		<datalist id="drug-list">
+			{#each drugHistory as drug (drug)}
+				<option value={drug}></option>
+			{/each}
+		</datalist>
 	</div>
 
 	<div>
-		<label for="sig" class="mb-1 block text-sm font-medium text-gray-700">
-			Prescription Instructions (SIG) *
-		</label>
+		<div class="mb-1 flex items-center gap-2">
+			<label for="sig" class="block text-sm font-medium text-gray-700">
+				Prescription Instructions (SIG) *
+			</label>
+			<select
+				on:change={(e) => {
+					if (e.currentTarget.value) {
+						sig = e.currentTarget.value;
+					}
+				}}
+				disabled={loading}
+				class="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+			>
+				<option value="">-- Common prescription instructions --</option>
+				{#each TEST_SIGS as testSig (testSig)}
+					<option value={testSig}>{testSig}</option>
+				{/each}
+			</select>
+		</div>
 		<textarea
 			id="sig"
 			bind:value={sig}
 			disabled={loading}
-			rows="3"
+			rows="2"
 			class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			placeholder="e.g., 1 tablet twice daily"
 		></textarea>
@@ -110,14 +167,20 @@
 				disabled={loading}
 				min="1"
 				max="365"
-				class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				list="days-supply-list"
+				class="no-spinner w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 				placeholder="e.g., 30"
 			/>
+			<datalist id="days-supply-list">
+				{#each TEST_DAYS_SUPPLY as days (days)}
+					<option value={days}></option>
+				{/each}
+			</datalist>
 		</div>
 
 		<div>
 			<label for="totalQuantity" class="mb-1 block text-sm font-medium text-gray-700">
-				Total Quantity (for reverse calculation)
+				Total Quantity <span class="italic">(use this OR Days Supply)</span>
 			</label>
 			<input
 				id="totalQuantity"
@@ -125,28 +188,36 @@
 				bind:value={totalQuantity}
 				disabled={loading}
 				min="1"
-				class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				list="total-quantity-list"
+				class="no-spinner w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 				placeholder="e.g., 60"
 			/>
+			<datalist id="total-quantity-list">
+				{#each TEST_QUANTITIES as qty (qty)}
+					<option value={qty}></option>
+				{/each}
+			</datalist>
 		</div>
 	</div>
 
 	<div>
-		<label for="manualDoses" class="mb-1 block text-sm font-medium text-gray-700">
-			Manual Override: Doses Per Day (optional)
-		</label>
+		<div class="mb-1 flex items-center gap-2">
+			<label for="manualDoses" class="block text-sm font-medium text-gray-700">
+				Manual Override: Doses Per Day (optional)
+			</label>
+			<p class="ml-auto text-xs text-gray-500">
+				Use this if the system cannot parse your prescription instructions
+			</p>
+		</div>
 		<input
 			id="manualDoses"
 			type="number"
 			bind:value={manualDosesPerDay}
 			disabled={loading}
 			min="1"
-			class="w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+			class="no-spinner w-full rounded-md border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			placeholder="Use if SIG parsing fails"
 		/>
-		<p class="mt-1 text-sm text-gray-500">
-			Use this if the system cannot parse your prescription instructions
-		</p>
 	</div>
 
 	{#if errors.length > 0}
@@ -172,3 +243,15 @@
 		{/if}
 	</button>
 </form>
+
+<style>
+	/* Hide spinner arrows on number inputs */
+	.no-spinner::-webkit-inner-spin-button,
+	.no-spinner::-webkit-outer-spin-button {
+		-webkit-appearance: none;
+		margin: 0;
+	}
+	.no-spinner {
+		-moz-appearance: textfield;
+	}
+</style>

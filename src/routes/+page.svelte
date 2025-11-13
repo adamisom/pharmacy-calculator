@@ -1,12 +1,8 @@
 <script lang="ts">
-	import { isDevMode } from '$lib/utils/test-data';
 	import PrescriptionForm from '$lib/components/PrescriptionForm.svelte';
-	import DevPrescriptionForm from '$lib/components/DevPrescriptionForm.svelte';
 	import ResultsDisplay from '$lib/components/ResultsDisplay.svelte';
 	import ErrorMessage from '$lib/components/ErrorMessage.svelte';
 	import type { PrescriptionInput, CalculationResult } from '$lib/types';
-
-	const devMode = isDevMode();
 
 	let result: CalculationResult | null = null;
 	let error: string | null = null;
@@ -57,11 +53,7 @@
 	<h1 class="mb-6 text-3xl font-bold">NDC Packaging & Quantity Calculator</h1>
 
 	<div class="mb-6 rounded-lg bg-white p-6 shadow-md">
-		{#if devMode}
-			<DevPrescriptionForm onSubmit={handleSubmit} {loading} />
-		{:else}
-			<PrescriptionForm onSubmit={handleSubmit} {loading} />
-		{/if}
+		<PrescriptionForm onSubmit={handleSubmit} {loading} />
 	</div>
 
 	{#if error}
