@@ -10,7 +10,12 @@ An AI-accelerated tool designed to enhance the accuracy of prescription fulfillm
 - **NDC Selection**: Algorithm selects optimal NDC packages that minimize overfill
 - **Reverse Calculation**: Calculate days supply from total quantity and SIG
 - **SIG Parsing**: Parse common prescription instruction patterns
-- **Warning System**: Flag inactive NDCs, overfills, and underfills
+  - Tablets and capsules
+  - Liquid medications (ml, teaspoons, tablespoons with automatic conversion)
+  - Insulin (units with meal-time patterns)
+  - Inhalers (puffs and actuations)
+- **Multi-Pack Combinations**: Suggest combining multiple package sizes to minimize overfill
+- **Warning System**: Flag inactive NDCs, overfills (>10%), and underfills (<5%)
 - **User-Friendly Errors**: Clear, actionable error messages for healthcare professionals
 
 ## Tech Stack
@@ -114,7 +119,11 @@ docs/
 ## Usage
 
 1. Enter a drug name (e.g., "Aspirin") or NDC code (e.g., "12345-678-90")
-2. Enter prescription instructions (SIG), e.g., "1 tablet twice daily"
+2. Enter prescription instructions (SIG):
+   - Tablets/Capsules: "1 tablet twice daily", "2 capsules every 8 hours"
+   - Liquids: "5 ml twice daily", "1 teaspoon daily", "1 tablespoon twice daily"
+   - Insulin: "10 units daily", "15 units before each meal", "20 units at bedtime"
+   - Inhalers: "2 puffs twice daily", "1 actuation every 6 hours"
 3. Enter days supply OR total quantity (for reverse calculation)
 4. (Optional) Provide manual override for doses per day if SIG parsing fails
 5. Click "Calculate" to get NDC recommendations
@@ -165,10 +174,10 @@ The app is designed to deploy on Google Cloud Platform using Cloud Run or App En
 
 ## Future Work
 
-### Planned Features
+### Planned Features (P2)
 
-- Enhanced SIG parsing for complex prescription instructions
-- Support for additional package types and unit types
+- Integration with pharmacy management systems
+- OpenAI integration for complex SIG parsing
 - Persistent caching (Redis) for multi-instance deployments
 - Batch calculation API for multiple prescriptions
 - Historical NDC tracking and change notifications

@@ -157,6 +157,11 @@ Main orchestration service that:
 - Regex pattern definitions for common SIG formats
 - Frequency calculation helpers
 - Unit type detection
+- Support for multiple dosage forms:
+  - Tablets and capsules
+  - Liquid medications (ml, teaspoons, tablespoons)
+  - Insulin (units)
+  - Inhalers (puffs, actuations)
 
 ### Calculator Layer
 
@@ -164,7 +169,7 @@ Main orchestration service that:
 
 #### Quantity Calculator (`quantity.ts`)
 
-- `calculateTotalQuantityNeeded()`: Calculate total units needed
+- `calculateTotalQuantityNeeded()`: Calculate total units needed (unit-agnostic - works for tablets, ml, units, puffs, etc.)
 - `calculatePackagesNeeded()`: Calculate number of packages (rounds up)
 - `calculateOverfill()`: Calculate overfill percentage
 - `calculateUnderfill()`: Calculate underfill percentage
@@ -193,6 +198,13 @@ Main orchestration service that:
 - Error factory functions for common scenarios
 - User-facing error messages
 
+#### Unit Conversion Utilities (`utils/unit-conversions.ts`)
+
+- Volume conversions (teaspoons→ml, tablespoons→ml, fluid ounces→ml)
+- Insulin unit conversions (units→ml for U-100, U-200, U-500)
+- Volume parsing from strings
+- Standard pharmacy conversion factors
+
 #### Configuration (`config.ts`)
 
 - API endpoints and base URLs
@@ -204,6 +216,8 @@ Main orchestration service that:
 
 - TypeScript interfaces for all data structures
 - Type aliases for enums
+- Unit types: `'tablet' | 'capsule' | 'ml' | 'unit' | 'puff' | 'actuation'`
+- Package types: `'bottle' | 'box' | 'inhaler' | 'vial' | 'syringe' | 'tube' | 'pack' | 'carton'`
 
 ## Data Flow
 
@@ -439,12 +453,14 @@ All error messages follow these principles:
 
 ## Future Enhancements
 
-### Phase 2+ Features
+### Phase 2+ Features (P2 - Out of Scope for MVP)
 
 - OpenAI integration for complex SIG parsing
 - Batch processing for multiple prescriptions
 - Historical data analytics
 - Integration with pharmacy management systems
+
+**Note:** All P0 and P1 requirements from the PRD have been implemented, including special dosage form support (liquids, insulin, inhalers).
 
 ### Architecture Improvements
 
