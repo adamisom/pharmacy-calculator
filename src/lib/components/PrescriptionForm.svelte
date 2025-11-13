@@ -78,10 +78,26 @@
 		if (!sig.trim()) {
 			errors.push('Prescription instructions are required');
 		}
-		if (daysSupply === '' && totalQuantity === '') {
+
+		// Check if daysSupply has a value (not empty, not 0, not null, not NaN)
+		const hasDaysSupply =
+			daysSupply !== '' &&
+			daysSupply !== null &&
+			daysSupply !== undefined &&
+			daysSupply !== 0 &&
+			!isNaN(Number(daysSupply));
+		// Check if totalQuantity has a value (not empty, not 0, not null, not NaN)
+		const hasTotalQuantity =
+			totalQuantity !== '' &&
+			totalQuantity !== null &&
+			totalQuantity !== undefined &&
+			totalQuantity !== 0 &&
+			!isNaN(Number(totalQuantity));
+
+		if (!hasDaysSupply && !hasTotalQuantity) {
 			errors.push('Either days supply or total quantity must be provided');
 		}
-		if (daysSupply !== '' && totalQuantity !== '') {
+		if (hasDaysSupply && hasTotalQuantity) {
 			errors.push('Please provide either days supply OR total quantity, not both');
 		}
 
