@@ -1,6 +1,5 @@
 test-results
 !docs/misc/test-results
-debug-metformin.log
 node_modules
 
 # Output

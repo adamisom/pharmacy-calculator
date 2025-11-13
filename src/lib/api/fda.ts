@@ -223,11 +223,6 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 
 		const originalNDC = ndc.trim();
 		const isPackageNDC = normalizedNDC.length === 11;
-		console.log('[FDA] Looking up NDC:', {
-			original: originalNDC,
-			normalized: normalizedNDC,
-			isPackageNDC
-		});
 
 		const result = await findNDCWithMultipleFormats(
 			originalNDC,
@@ -265,20 +260,7 @@ function resultToNDCPackage(
 	const packageSize = extractPackageSize(description);
 	const packageType = inferPackageType(description);
 
-	// Debug logging for package size extraction
-	if (packageSize === FDA_CONFIG.DEFAULT_PACKAGE_SIZE && description) {
-		const warningMsg = `[FDA] Package size extraction failed for NDC ${packageNDC}, description: "${description}", defaulting to ${FDA_CONFIG.DEFAULT_PACKAGE_SIZE}`;
-		// Only log to file, not console (too verbose)
-
-		// Log to file (async import since this is in a sync function)
-		import('$lib/utils/debug-logger')
-			.then(({ logToFile }) => {
-				logToFile(warningMsg, { ndc: packageNDC, description, extractedSize: packageSize });
-			})
-			.catch(() => {
-				// Ignore if logger not available
-			});
-	}
+	// Package size extraction failures are filtered out (packageSize === 1)
 
 	// Check if this specific package is active
 	let isActive = true;
@@ -313,15 +295,6 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 				pkg.packageSize > 1 && pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
 		);
 		if (validCached.length > 0) {
-			console.log(
-				'[FDA] Packages from cache for drug:',
-				drugName,
-				'count:',
-				validCached.length,
-				'(filtered from',
-				cached.length,
-				')'
-			);
 			return validCached;
 		}
 		// If all cached packages are invalid, clear cache and fetch fresh
@@ -333,10 +306,8 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 		// Search by generic_name (generic name) or brand_name (brand name)
 		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=${FDA_CONFIG.SEARCH_LIMIT}${apiKeyParam}`;
-		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
 
 		const data = await fetchWithRetry<FDANDCResponse>(url);
-		console.log('[FDA] Search response count:', data.results?.length || 0);
 
 		const packages: NDCPackage[] = [];
 		const seenNDCs = new Set<string>();
@@ -363,19 +334,6 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 			}
 		}
 
-		// Log summary to console, full list to file
-		console.log(
-			`[FDA] Extracted ${packages.length} unique packages, logging full details to debug-metformin.log`
-		);
-
-		// Log detailed package info to file
-		try {
-			const { logToFile } = await import('$lib/utils/debug-logger');
-			logToFile('[FDA] Extracted unique packages (full list)', packages);
-		} catch {
-			// Ignore if logger not available
-		}
-
 		// Filter out invalid packages before caching
 		// Exclude packages where extraction failed (packageSize === 1)
 		// Also exclude unreasonably large packages (bulk/industrial, not consumer packages)
@@ -386,9 +344,6 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 
 		if (validPackages.length > 0) {
 			cache.set(cacheKey, validPackages);
-			console.log(
-				`[FDA] Cached ${validPackages.length} valid packages (filtered out ${packages.length - validPackages.length} with packageSize === 1)`
-			);
 		}
 		return validPackages;
 	} catch (err) {
@@ -406,7 +361,6 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 	const cacheKey = `fda:search:${drugName.toLowerCase().trim()}`;
 	const cached = cache.get<string[]>(cacheKey);
 	if (cached) {
-		console.log('[FDA] NDCs from cache for drug:', drugName, 'count:', cached.length);
 		return cached;
 	}
 
@@ -415,10 +369,8 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 		// Search by generic_name (generic name) or brand_name (brand name)
 		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=${FDA_CONFIG.SEARCH_LIMIT}${apiKeyParam}`;
-		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
 
 		const data = await fetchWithRetry<FDANDCResponse>(url);
-		console.log('[FDA] Search response count:', data.results?.length || 0);
 
 		const ndcs: string[] = [];
 		if (data.results) {
@@ -439,7 +391,6 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 
 		// Remove duplicates
 		const uniqueNDCs = [...new Set(ndcs)];
-		console.log('[FDA] Extracted unique NDCs:', uniqueNDCs.length, uniqueNDCs.slice(0, 10));
 
 		if (uniqueNDCs.length > 0) {
 			cache.set(cacheKey, uniqueNDCs);

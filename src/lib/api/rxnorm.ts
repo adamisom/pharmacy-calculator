@@ -29,7 +29,6 @@ export async function searchDrugName(
 
 	try {
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/approximateTerm.json?term=${encodeURIComponent(drugName)}&maxEntries=1`;
-		console.log('[RxNorm] Searching for drug:', drugName, 'URL:', url);
 		const data = await fetchWithRetry<RxNormApproximateTermResult>(url);
 
 		// Find first candidate that has both rxcui and name
@@ -61,10 +60,8 @@ export async function getNDCsForRxCUI(rxcui: string, forceRefresh = false): Prom
 
 	// If cached and not forcing refresh, return it (even if empty - might be valid)
 	if (cached && !forceRefresh) {
-		console.log('[RxNorm] NDCs from cache for RxCUI:', rxcui, 'count:', cached.length);
 		// If cache has 0, invalidate and retry once
 		if (cached.length === 0) {
-			console.log('[RxNorm] Cache has 0 NDCs, invalidating and retrying...');
 			cache.delete(cacheKey);
 			return getNDCsForRxCUI(rxcui, true);
 		}
@@ -73,11 +70,9 @@ export async function getNDCsForRxCUI(rxcui: string, forceRefresh = false): Prom
 
 	try {
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/rxcui/${rxcui}/ndcs.json`;
-		console.log('[RxNorm] Fetching NDCs for RxCUI:', rxcui, 'URL:', url);
 		const data = await fetchWithRetry<RxNormNDCResult>(url);
 
 		const ndcs = data.ndcGroup?.ndcList?.ndc || [];
-		console.log('[RxNorm] Extracted NDCs:', ndcs.length, ndcs.slice(0, 5));
 
 		// Only log full response if no NDCs found (might indicate an issue)
 		if (ndcs.length === 0) {

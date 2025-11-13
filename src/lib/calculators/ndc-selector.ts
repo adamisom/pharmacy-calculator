@@ -15,21 +15,6 @@ export function createNDCRecommendation(
 		packageDetails.packageSize
 	);
 
-	// Log to file only (too verbose for console)
-	import('$lib/utils/debug-logger')
-		.then(({ logToFile }) => {
-			logToFile(`[NDC-REC] Creating recommendation for ${ndc}`, {
-				need: totalQuantityNeeded,
-				packageSize: packageDetails.packageSize,
-				packagesNeeded,
-				totalUnits,
-				overfill: `${overfill.toFixed(1)}%`
-			});
-		})
-		.catch(() => {
-			// Ignore if logger not available
-		});
-
 	return {
 		ndc,
 		packagesNeeded,
@@ -51,10 +36,6 @@ export function selectOptimalNDCs(
 			pkg.isActive &&
 			pkg.packageSize > 1 &&
 			pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
-	);
-
-	console.log(
-		`[NDC-SELECTOR] Input: ${packages.length} packages, Filtered: ${activePackages.length} valid active packages (excluded ${packages.length - activePackages.length} with packageSize <= 1, > ${CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE}, or inactive)`
 	);
 
 	if (activePackages.length === 0) {

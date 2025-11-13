@@ -42,29 +42,23 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		packages = packageInfo;
 	} else {
 		// Drug name input - use RxNorm
-		console.log('[Calculation] Normalizing drug input:', input.drugNameOrNDC);
 		const normalized = await normalizeDrugInput(input.drugNameOrNDC);
 		if (!normalized) {
 			console.error('[Calculation] Drug normalization failed for:', input.drugNameOrNDC);
 			throw getDrugNotFoundError();
 		}
-		console.log('[Calculation] Normalized to:', normalized);
 		rxcui = normalized.rxcui;
 		drugName = normalized.name;
 
 		// Try RxNorm first
 		const ndcs = await getNDCsForRxCUI(rxcui);
-		console.log('[Calculation] Found NDCs from RxNorm:', ndcs.length);
 
 		if (ndcs.length > 0) {
 			// Get package info from FDA for RxNorm NDCs
 			packages = await getMultipleNDCInfo(ndcs);
-			console.log('[Calculation] Found packages from FDA for RxNorm NDCs:', packages.length);
 		} else {
 			// Fallback: if RxNorm has no NDCs, search FDA directly by drug name
-			console.log('[Calculation] RxNorm has no NDCs, trying FDA search by drug name...');
 			packages = await searchNDCPackagesByDrugName(drugName);
-			console.log('[Calculation] Found packages from FDA search:', packages.length);
 		}
 
 		if (packages.length === 0) {
@@ -99,31 +93,7 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	}
 
 	// 6. Select optimal NDCs
-	// Log summary to console, full list to file
-	if (packages.length > 0) {
-		console.log(
-			`[CALC] Selecting NDCs - Total quantity needed: ${totalQuantityNeeded}, Found ${packages.length} packages (logging full details to debug-metformin.log)`
-		);
-
-		// Log full package list to file
-		import('$lib/utils/debug-logger')
-			.then(({ logToFile }) => {
-				logToFile('[CALC] Selecting NDCs - Total quantity needed and all available packages', {
-					totalQuantityNeeded,
-					packages: packages.map((p) => ({ ndc: p.ndc, size: p.packageSize, active: p.isActive }))
-				});
-			})
-			.catch(() => {
-				// Ignore if logger not available
-			});
-	}
 	let recommendations = selectOptimalNDCs(packages, totalQuantityNeeded);
-	console.log(
-		'[CALC] Selected recommendations:',
-		recommendations.map(
-			(r) => `${r.ndc} (packages: ${r.packagesNeeded}, overfill: ${r.overfill.toFixed(1)}%)`
-		)
-	);
 
 	// Try multi-pack combination if single-pack options have high overfill
 	if (
