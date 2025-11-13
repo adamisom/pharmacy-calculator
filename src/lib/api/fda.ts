@@ -179,17 +179,16 @@ async function findNDCWithMultipleFormats(
 			result = await tryNDCLookup(originalNDC, searchField, apiKeyParam);
 		}
 	} else {
-		// For product NDCs, try original format first (FDA API prefers dashes)
-		if (originalNDC !== normalizedNDC) {
-			result = await tryNDCLookup(originalNDC, searchField, apiKeyParam);
+		// For product NDCs, FDA API requires dashes
+		// Try dashed format first (most reliable for product NDCs)
+		const dashedFormat = formatNDCWithDashes(normalizedNDC);
+		if (dashedFormat !== normalizedNDC) {
+			result = await tryNDCLookup(dashedFormat, searchField, apiKeyParam);
 		}
 
-		// If original had no dashes or didn't work, try reconstructed format with dashes
-		if (!result) {
-			const dashedFormat = formatNDCWithDashes(normalizedNDC);
-			if (dashedFormat !== normalizedNDC && dashedFormat !== originalNDC) {
-				result = await tryNDCLookup(dashedFormat, searchField, apiKeyParam);
-			}
+		// If dashed format didn't work and original had dashes, try original
+		if (!result && originalNDC !== normalizedNDC && originalNDC !== dashedFormat) {
+			result = await tryNDCLookup(originalNDC, searchField, apiKeyParam);
 		}
 
 		// If not found, try normalized format as fallback
