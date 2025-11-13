@@ -10,7 +10,13 @@ export const CALCULATION_THRESHOLDS = {
 	OVERFILL_WARNING: 10, // percentage
 	UNDERFILL_WARNING: 5, // percentage
 	MAX_DAYS_SUPPLY: 365,
-	MIN_DAYS_SUPPLY: 1
+	MIN_DAYS_SUPPLY: 1,
+	MAX_REASONABLE_PACKAGE_SIZE: 10000 // Maximum reasonable package size for nested calculations
+} as const;
+
+export const FDA_CONFIG = {
+	SEARCH_LIMIT: 100, // Maximum results per FDA API search
+	DEFAULT_PACKAGE_SIZE: 1 // Safe default when package size cannot be extracted
 } as const;
 
 // FDA API key is optional - only needed for higher rate limits

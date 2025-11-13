@@ -1,4 +1,4 @@
-import { API_CONFIG, getFDAApiKey } from '$lib/config';
+import { API_CONFIG, getFDAApiKey, CALCULATION_THRESHOLDS, FDA_CONFIG } from '$lib/config';
 import { cache } from './cache';
 import { normalizeNDC } from './rxnorm';
 import type { NDCPackage, PackageType } from '$lib/types';
@@ -21,15 +21,14 @@ interface FDANDCResponse {
 	}>;
 }
 
-// Helper to extract package size from description
-function extractPackageSize(description: string): number {
-	// Priority 1: Look for unit counts (TABLET, CAPSULE, etc.) - these are the actual package sizes
+// Helper functions for package size extraction
+// Exported for testing
+export function findUnitMatches(description: string): number[] {
 	const unitPatterns = [
 		/(\d+)\s*(?:TABLET|CAPSULE|ML|UNIT|PUFF|ACTUATION)/i,
 		/(\d+)\s*(?:COUNT|CT|EA)/i
 	];
 
-	// Try to find all unit count matches (for nested descriptions like "30 POUCH / 1 TABLET in 1 POUCH")
 	const allUnitMatches: number[] = [];
 	for (const pattern of unitPatterns) {
 		const matches = description.matchAll(new RegExp(pattern.source, pattern.flags + 'g'));
@@ -37,22 +36,43 @@ function extractPackageSize(description: string): number {
 			allUnitMatches.push(parseInt(match[1], 10));
 		}
 	}
+	return allUnitMatches;
+}
+
+export function findContainerMatches(description: string): number[] {
+	const containerMatches = [...description.matchAll(/(\d+)\s*(?:BLISTER|POUCH|PACK|BOX|CARTON)/gi)];
+	return containerMatches.map((m) => parseInt(m[1], 10));
+}
+
+export function calculateNestedPackageSize(
+	containerCount: number,
+	unitsPerContainer: number
+): number | null {
+	// Only use calculation if it makes sense (container count > 1 and reasonable product)
+	if (
+		containerCount > 1 &&
+		containerCount * unitsPerContainer <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
+	) {
+		return containerCount * unitsPerContainer;
+	}
+	return null;
+}
+
+// Helper to extract package size from description
+// Exported for testing
+export function extractPackageSize(description: string): number {
+	// Priority 1: Look for unit counts (TABLET, CAPSULE, etc.) - these are the actual package sizes
+	const allUnitMatches = findUnitMatches(description);
 
 	if (allUnitMatches.length > 0) {
 		// Try to calculate total for nested descriptions
 		// Pattern: "X CONTAINER / Y TABLET in 1 CONTAINER" = X * Y total
-		// Find container counts (excluding "1 BOX" or "1 CARTON" which are outer packaging)
-		const containerMatches = [
-			...description.matchAll(/(\d+)\s*(?:BLISTER|POUCH|PACK|BOX|CARTON)/gi)
-		];
-		// Find unit counts
+		const containerCounts = findContainerMatches(description);
 		const unitMatches = [...description.matchAll(/(\d+)\s*(?:TABLET|CAPSULE)/gi)];
 
-		if (containerMatches.length > 0 && unitMatches.length > 0) {
+		if (containerCounts.length > 0 && unitMatches.length > 0) {
 			// Find the container count that's not "1" (skip outer packaging like "1 BOX")
-			const containerCount =
-				containerMatches.map((m) => parseInt(m[1], 10)).find((n) => n > 1) ||
-				parseInt(containerMatches[0][1], 10);
+			const containerCount = containerCounts.find((n) => n > 1) || containerCounts[0];
 
 			// Use the first unit count (usually the per-container amount)
 			const unitsPerContainer = parseInt(unitMatches[0][1], 10);
@@ -60,9 +80,9 @@ function extractPackageSize(description: string): number {
 			// Calculate total: containers * units per container
 			// Example: "6 BLISTER PACK in 1 BOX / 5 TABLET in 1 BLISTER" = 6 * 5 = 30
 			// Example: "30 POUCH in 1 BOX / 1 TABLET in 1 POUCH" = 30 * 1 = 30
-			// Only use calculation if it makes sense (container count > 1 and reasonable product)
-			if (containerCount > 1 && containerCount * unitsPerContainer <= 10000) {
-				return containerCount * unitsPerContainer;
+			const nestedSize = calculateNestedPackageSize(containerCount, unitsPerContainer);
+			if (nestedSize !== null) {
+				return nestedSize;
 			}
 		}
 
@@ -77,7 +97,7 @@ function extractPackageSize(description: string): number {
 	// Priority 2: If no unit count found, this is likely an invalid/malformed description
 	// Don't guess - return a safe default and log a warning
 	console.warn('[FDA] Could not extract package size from description:', description);
-	return 1; // Safe default - caller should handle this
+	return FDA_CONFIG.DEFAULT_PACKAGE_SIZE;
 }
 
 // Helper to infer package type from description
@@ -130,6 +150,68 @@ function formatNDCWithDashes(ndc: string): string {
 	return ndc;
 }
 
+// Helper to try a single NDC lookup with a specific format
+async function tryNDCLookup(
+	ndc: string,
+	searchField: 'package_ndc' | 'product_ndc',
+	apiKeyParam: string
+): Promise<FDANDCResponse['results'][0] | undefined> {
+	const url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${ndc}"&limit=1${apiKeyParam}`;
+	const data = await fetchWithRetry<FDANDCResponse>(url);
+	return data.results?.[0];
+}
+
+// Helper to find NDC using multiple format attempts
+async function findNDCWithMultipleFormats(
+	originalNDC: string,
+	normalizedNDC: string,
+	isPackageNDC: boolean,
+	apiKeyParam: string
+): Promise<FDANDCResponse['results'][0] | undefined> {
+	const searchField = isPackageNDC ? 'package_ndc' : 'product_ndc';
+	let result: FDANDCResponse['results'][0] | undefined;
+
+	if (isPackageNDC) {
+		// Try normalized format first for package NDCs
+		result = await tryNDCLookup(normalizedNDC, searchField, apiKeyParam);
+
+		// If not found, try original format (with dashes) if different
+		if (!result && originalNDC !== normalizedNDC) {
+			result = await tryNDCLookup(originalNDC, searchField, apiKeyParam);
+		}
+	} else {
+		// For product NDCs, try original format first (FDA API prefers dashes)
+		if (originalNDC !== normalizedNDC) {
+			result = await tryNDCLookup(originalNDC, searchField, apiKeyParam);
+		}
+
+		// If original had no dashes or didn't work, try reconstructed format with dashes
+		if (!result) {
+			const dashedFormat = formatNDCWithDashes(normalizedNDC);
+			if (dashedFormat !== normalizedNDC && dashedFormat !== originalNDC) {
+				result = await tryNDCLookup(dashedFormat, searchField, apiKeyParam);
+			}
+		}
+
+		// If not found, try normalized format as fallback
+		if (!result) {
+			result = await tryNDCLookup(normalizedNDC, searchField, apiKeyParam);
+		}
+	}
+
+	// If not found and we tried package_ndc, try product_ndc as fallback
+	if (!result && isPackageNDC) {
+		result = await tryNDCLookup(normalizedNDC, 'product_ndc', apiKeyParam);
+
+		// Also try original format for product_ndc
+		if (!result && originalNDC !== normalizedNDC) {
+			result = await tryNDCLookup(originalNDC, 'product_ndc', apiKeyParam);
+		}
+	}
+
+	return result;
+}
+
 export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null> {
 	const normalizedNDC = normalizeNDC(ndc);
 	const cacheKey = `fda:ndc:${normalizedNDC}`;
@@ -140,97 +222,26 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 
-		// Try both normalized format and original format (with dashes)
 		const originalNDC = ndc.trim();
 		const isPackageNDC = normalizedNDC.length === 11;
-		const searchField = isPackageNDC ? 'package_ndc' : 'product_ndc';
 		console.log('[FDA] Looking up NDC:', {
 			original: originalNDC,
 			normalized: normalizedNDC,
-			isPackageNDC,
-			searchField
+			isPackageNDC
 		});
 
-		// For product NDCs (8-9 digits), try original format first (FDA API prefers dashes)
-		// For package NDCs (11 digits), try normalized format first
-		let url: string;
-		let data: FDANDCResponse;
-		let result: FDANDCResponse['results'][0] | undefined;
-
-		if (isPackageNDC) {
-			// Try normalized format first for package NDCs
-			url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
-			data = await fetchWithRetry<FDANDCResponse>(url);
-			result = data.results?.[0];
-
-			// If not found, try original format (with dashes) if different
-			if (!result && originalNDC !== normalizedNDC) {
-				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${originalNDC}"&limit=1${apiKeyParam}`;
-				data = await fetchWithRetry<FDANDCResponse>(url);
-				result = data.results?.[0];
-			}
-		} else {
-			// For product NDCs, try original format first (with dashes)
-			if (originalNDC !== normalizedNDC) {
-				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${originalNDC}"&limit=1${apiKeyParam}`;
-				console.log('[FDA] Trying original format URL:', url);
-				data = await fetchWithRetry<FDANDCResponse>(url);
-				result = data.results?.[0];
-				console.log('[FDA] Original format result:', result ? 'found' : 'not found');
-			}
-
-			// If original had no dashes or didn't work, try reconstructed format with dashes
-			if (!result) {
-				const dashedFormat = formatNDCWithDashes(normalizedNDC);
-				if (dashedFormat !== normalizedNDC && dashedFormat !== originalNDC) {
-					url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${dashedFormat}"&limit=1${apiKeyParam}`;
-					console.log('[FDA] Trying reconstructed dashed format URL:', url);
-					data = await fetchWithRetry<FDANDCResponse>(url);
-					result = data.results?.[0];
-					console.log('[FDA] Reconstructed dashed format result:', result ? 'found' : 'not found');
-				}
-			}
-
-			// If not found, try normalized format as fallback (usually won't work but worth trying)
-			if (!result) {
-				url = `${API_CONFIG.FDA_BASE_URL}?search=${searchField}:"${normalizedNDC}"&limit=1${apiKeyParam}`;
-				console.log('[FDA] Trying normalized format URL:', url);
-				data = await fetchWithRetry<FDANDCResponse>(url);
-				result = data.results?.[0];
-				console.log('[FDA] Normalized format result:', result ? 'found' : 'not found');
-			}
-		}
-
-		// If not found and we tried package_ndc, try product_ndc as fallback
-		if (!result && isPackageNDC) {
-			url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${normalizedNDC}"&limit=1${apiKeyParam}`;
-			data = await fetchWithRetry<FDANDCResponse>(url);
-			result = data.results?.[0];
-
-			// Also try original format for product_ndc
-			if (!result && originalNDC !== normalizedNDC) {
-				url = `${API_CONFIG.FDA_BASE_URL}?search=product_ndc:"${originalNDC}"&limit=1${apiKeyParam}`;
-				data = await fetchWithRetry<FDANDCResponse>(url);
-				result = data.results?.[0];
-			}
-		}
+		const result = await findNDCWithMultipleFormats(
+			originalNDC,
+			normalizedNDC,
+			isPackageNDC,
+			apiKeyParam
+		);
 
 		if (!result) return null;
 
-		const packageNDC = result.package_ndc || result.product_ndc || normalizedNDC;
-		const description = result.package_description || result.packaging?.[0]?.description || '';
-		const packageSize = extractPackageSize(description);
-		const packageType = inferPackageType(description);
-		const isActive = isNDCActive(result);
-		const manufacturer = result.labeler_name || result.proprietary_name || 'Unknown';
-
-		const packageInfo: NDCPackage = {
-			ndc: normalizeNDC(packageNDC),
-			packageSize,
-			packageType,
-			isActive,
-			manufacturer
-		};
+		// Use resultToNDCPackage to avoid duplication
+		const packageInfo = resultToNDCPackage(result);
+		if (!packageInfo) return null;
 
 		cache.set(cacheKey, packageInfo);
 		return packageInfo;
@@ -288,7 +299,7 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 		// Search by generic_name (generic name) or brand_name (brand name)
-		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
+		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=${FDA_CONFIG.SEARCH_LIMIT}${apiKeyParam}`;
 		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
 
 		const data = await fetchWithRetry<FDANDCResponse>(url);
@@ -352,7 +363,7 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 		const apiKey = getFDAApiKey();
 		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
 		// Search by generic_name (generic name) or brand_name (brand name)
-		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=100${apiKeyParam}`;
+		const url = `${API_CONFIG.FDA_BASE_URL}?search=(generic_name:"${encodeURIComponent(drugName)}" OR brand_name:"${encodeURIComponent(drugName)}")&limit=${FDA_CONFIG.SEARCH_LIMIT}${apiKeyParam}`;
 		console.log('[FDA] Searching for drug:', drugName, 'URL:', url);
 
 		const data = await fetchWithRetry<FDANDCResponse>(url);

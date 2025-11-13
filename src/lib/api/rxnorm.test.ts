@@ -31,7 +31,8 @@ describe('RxNorm utilities', () => {
 		it('should reject non-NDC formats', () => {
 			expect(isNDCFormat('Aspirin')).toBe(false);
 			expect(isNDCFormat('123')).toBe(false);
-			expect(isNDCFormat('12345-678')).toBe(false);
+			expect(isNDCFormat('1234567')).toBe(false); // 7 digits - too short
+			expect(isNDCFormat('123456789012')).toBe(false); // 12 digits - too long
 			expect(isNDCFormat('abc123')).toBe(false);
 		});
 	});

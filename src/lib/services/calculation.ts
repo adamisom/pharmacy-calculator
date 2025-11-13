@@ -9,6 +9,8 @@ import { selectOptimalNDCs, findMultiPackCombination } from '$lib/calculators/nd
 import { validatePrescriptionInput } from './validation';
 import { CALCULATION_THRESHOLDS } from '$lib/config';
 import { getDrugNotFoundError, getGenericError } from '$lib/utils/errors';
+import { getEffectiveDaysSupply } from '$lib/utils/prescription-utils';
+import { generateWarnings } from '$lib/utils/warnings';
 
 export async function calculatePrescription(input: PrescriptionInput): Promise<CalculationResult> {
 	// 1. Validate input
@@ -78,8 +80,7 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	const parsedSIG = parseSIGWithFallback(input.sig, input.manualDosesPerDay);
 
 	// 5. Calculate quantity or days supply
-	// Treat 0 as null for reverse calculation scenarios
-	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
+	const effectiveDaysSupply = getEffectiveDaysSupply(input);
 
 	let totalQuantityNeeded: number;
 	let daysSupply: number;
@@ -116,31 +117,7 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	}
 
 	// 7. Generate warnings
-	const warnings: string[] = [];
-
-	if (recommendations.length === 0) {
-		warnings.push('No suitable packages found for this prescription.');
-	} else {
-		const hasInactive = recommendations.some((rec) => !rec.packageDetails.isActive);
-		if (hasInactive) {
-			warnings.push('Some recommended packages are inactive and should not be used.');
-		}
-
-		recommendations.forEach((rec) => {
-			if (!rec.packageDetails.isActive) {
-				warnings.push(`NDC ${rec.ndc} is inactive.`);
-			}
-			if (rec.overfill > CALCULATION_THRESHOLDS.OVERFILL_WARNING) {
-				warnings.push(`NDC ${rec.ndc} has ${rec.overfill.toFixed(1)}% overfill.`);
-			}
-		});
-	}
-
-	// Check if all packages are inactive
-	const allInactive = packages.every((pkg) => !pkg.isActive);
-	if (allInactive && packages.length > 0) {
-		warnings.push('All available packages for this medication are inactive.');
-	}
+	const warnings = generateWarnings(recommendations, packages);
 
 	return {
 		rxcui,

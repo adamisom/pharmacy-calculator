@@ -1,5 +1,6 @@
 import type { PrescriptionInput } from '$lib/types';
 import { CALCULATION_THRESHOLDS } from '$lib/config';
+import { getEffectiveDaysSupply } from '$lib/utils/prescription-utils';
 
 export interface ValidationResult {
 	valid: boolean;
@@ -18,8 +19,7 @@ export function validatePrescriptionInput(input: PrescriptionInput): ValidationR
 	}
 
 	// Days supply validation
-	// Treat 0 as null for reverse calculation scenarios
-	const effectiveDaysSupply = input.daysSupply === 0 ? null : input.daysSupply;
+	const effectiveDaysSupply = getEffectiveDaysSupply(input);
 
 	if (effectiveDaysSupply !== null) {
 		if (typeof effectiveDaysSupply !== 'number' || isNaN(effectiveDaysSupply)) {
