@@ -12,8 +12,11 @@ The NDC Calculator helps pharmacists and pharmacy technicians match prescription
 
 2. **Enter Prescription Instructions (SIG)**
    - Enter the prescription instructions as written
-   - Examples: "1 tablet twice daily", "2 capsules by mouth every 8 hours"
-   - The system will parse common patterns automatically
+   - **Tablets/Capsules**: "1 tablet twice daily", "2 capsules by mouth every 8 hours"
+   - **Liquid Medications**: "5 ml twice daily", "1 teaspoon daily", "1 tablespoon twice daily"
+   - **Insulin**: "10 units daily", "15 units before each meal", "20 units at bedtime"
+   - **Inhalers**: "2 puffs twice daily", "1 actuation every 6 hours", "2 puffs as needed"
+   - The system will parse common patterns automatically and convert units (e.g., teaspoons → ml)
 
 3. **Enter Days Supply or Total Quantity**
    - **Days Supply**: Enter the number of days (e.g., 30)
@@ -108,6 +111,24 @@ For power users, expand the JSON output to see the complete calculation result i
 - Total Quantity: 60
 - Result: System calculates days supply (30 days)
 
+### Scenario 4: Liquid Medication
+- Drug: "Amoxicillin"
+- SIG: "5 ml twice daily"
+- Days Supply: 10
+- Result: System calculates total ml needed (100 ml) and finds appropriate bottle sizes
+
+### Scenario 5: Insulin
+- Drug: "Insulin glargine"
+- SIG: "20 units at bedtime"
+- Days Supply: 30
+- Result: System calculates total units needed and finds appropriate vial sizes
+
+### Scenario 6: Inhaler
+- Drug: "Albuterol"
+- SIG: "2 puffs twice daily"
+- Days Supply: 30
+- Result: System calculates total puffs needed and finds appropriate inhaler sizes
+
 ## Tips
 
 - Use full drug names for best matching results
@@ -127,7 +148,10 @@ A: This tool calculates quantities but doesn't validate controlled substance reg
 A: The system will flag this as a warning. You may need to contact the manufacturer or use an alternative drug.
 
 **Q: How accurate is the SIG parsing?**  
-A: The system handles common patterns well. For complex instructions, use the manual override.
+A: The system handles common patterns well, including tablets, capsules, liquids (ml, teaspoons, tablespoons), insulin (units), and inhalers (puffs, actuations). For complex instructions, use the manual override.
+
+**Q: Does the system convert between units?**  
+A: Yes. The system automatically converts teaspoons to ml (1 tsp = 5 ml) and tablespoons to ml (1 tbsp = 15 ml) when parsing SIG instructions. Insulin units and inhaler puffs/actuations are handled directly.
 
 ## Troubleshooting
 

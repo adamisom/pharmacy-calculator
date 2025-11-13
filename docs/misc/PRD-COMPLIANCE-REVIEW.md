@@ -100,37 +100,38 @@ This document reviews the PRD requirements against the actual implementation to 
 - Package size extraction recognizes ML, UNIT, PUFF, ACTUATION in FDA descriptions (`src/lib/api/fda.ts`)
 - Unit types defined: `'tablet' | 'capsule' | 'ml' | 'unit' | 'puff' | 'actuation'` (`src/lib/types.ts`)
 
-**What's MISSING:**
-1. **SIG Parsing for Special Forms:**
-   - Current SIG patterns only handle tablets/capsules (`src/lib/parsers/sig-patterns.ts`)
-   - No patterns for:
-     - Liquid medications (e.g., "5 ml twice daily", "1 teaspoon daily")
-     - Insulin (e.g., "10 units before meals", "20 units at bedtime")
-     - Inhalers (e.g., "2 puffs twice daily", "1 actuation every 4 hours")
+**What's IMPLEMENTED:**
+1. **SIG Parsing for Special Forms:** ✅ **IMPLEMENTED**
+   - **Location:** `src/lib/parsers/sig-patterns.ts`
+   - **Liquid medications**: Patterns for ml, teaspoons (converts to ml), tablespoons (converts to ml)
+   - **Insulin**: Patterns for units with various frequencies (daily, before meals, at bedtime, etc.)
+   - **Inhalers**: Patterns for puffs and actuations with various frequencies
 
-2. **Unit Conversion Utilities:**
-   - No conversion table for:
+2. **Unit Conversion Utilities:** ✅ **IMPLEMENTED**
+   - **Location:** `src/lib/utils/unit-conversions.ts`
+   - Conversion functions for:
      - Teaspoons/tablespoons to ml (1 tsp = 5 ml, 1 tbsp = 15 ml)
-     - Insulin units to ml (varies by concentration, typically 100 units/ml)
-     - Other pharmacy conversions
-   - **Location:** Should be in `src/lib/utils/` (does not exist)
+     - Insulin units to ml (supports U-100, U-200, U-500 concentrations)
+     - Volume parsing from strings
+   - **Note:** Conversions are applied during SIG parsing (teaspoons/tablespoons → ml)
 
-3. **Special Handling Logic:**
-   - No special calculation logic for:
-     - Liquid medications (ml-based calculations)
-     - Insulin (units/ml conversions based on concentration)
-     - Inhalers (puff/actuation counts)
-   - **Location:** Should be in `src/lib/calculators/` (does not exist)
+3. **Special Handling Logic:** ✅ **IMPLEMENTED**
+   - The existing calculation logic (`src/lib/calculators/quantity.ts`) is unit-agnostic and works correctly for all unit types
+   - Liquid medications: Calculated in ml (converted from teaspoons/tablespoons during parsing)
+   - Insulin: Calculated in units (handled directly)
+   - Inhalers: Calculated in puffs/actuations (handled directly)
+   - **Note:** No special calculation logic needed - the generic `dosesPerDay × daysSupply × unitsPerDose` formula works for all unit types
 
 4. **Package Type Inference:**
-   - `inferPackageType()` in `fda.ts` can detect `inhaler` but doesn't have special logic for liquids or insulin vials
-   - No logic to infer unit type from package type (e.g., inhaler → puffs)
+   - `inferPackageType()` in `fda.ts` can detect `inhaler`, `vial`, `syringe` types
+   - Package size extraction recognizes ML, UNIT, PUFF, ACTUATION in FDA descriptions
+   - **Note:** Unit type inference from package type is not needed - SIG parsing determines unit type
 
 **PRD Requirements (Section 12.2, Phase 3):**
-- ❌ "Add special handling for liquid medications (ml calculations)" - NOT IMPLEMENTED
-- ❌ "Add special handling for insulin (units/ml conversions)" - NOT IMPLEMENTED  
-- ❌ "Add special handling for inhalers (puff/actuation counts)" - NOT IMPLEMENTED
-- ❌ "Create unit conversion utilities" - NOT IMPLEMENTED
+- ✅ "Add special handling for liquid medications (ml calculations)" - **IMPLEMENTED**
+- ✅ "Add special handling for insulin (units/ml conversions)" - **IMPLEMENTED**  
+- ✅ "Add special handling for inhalers (puff/actuation counts)" - **IMPLEMENTED**
+- ✅ "Create unit conversion utilities" - **IMPLEMENTED**
 
 ---
 
