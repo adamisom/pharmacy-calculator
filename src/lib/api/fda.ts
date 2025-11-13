@@ -232,8 +232,10 @@ export async function getNDCPackageInfo(ndc: string): Promise<NDCPackage | null>
 
 		if (!result) return null;
 
-		// Use resultToNDCPackage to avoid duplication
-		const packageInfo = resultToNDCPackage(result);
+		// If result has packaging array, use the first packaging item (most common case)
+		// Otherwise use product-level data
+		const packaging = result.packaging?.[0];
+		const packageInfo = resultToNDCPackage(result, packaging);
 		if (!packageInfo) return null;
 
 		cache.set(cacheKey, packageInfo);
