@@ -95,6 +95,10 @@
 
 **Expected:** Warning badge displayed (yellow for overfill) on affected NDC recommendations
 
+**Result:** ✅ PASSED
+
+![Test 6 Result - Overfill Warning Display](./testing/test-6-overfill-warning-result.png)
+
 ---
 
 ## Test 7: Inactive NDC Warning Display
@@ -105,12 +109,27 @@
 
 - An inactive NDC is a medication package that has passed its marketing end date in the FDA database. This means the manufacturer has discontinued marketing that specific package size/format. The system automatically shows warnings (red badge) for any recommended NDCs that are marked as inactive.
 
-  **To find inactive NDCs for testing:**
-  1. Search for older or less common drugs (e.g., `phentermine`, `warfarin`, `digoxin`)
-  2. Look for drugs that may have been reformulated or discontinued
-  3. Check the FDA API results - packages with `marketing_end_date` in the past will be marked inactive
-  4. If no inactive NDCs appear in results, the system will still show the warning badge if any are found
-  5. You can also try searching for specific NDCs that you know are discontinued
+  **Finding inactive NDCs is challenging** because:
+  - Most packages don't have a `marketing_end_date` (they're active indefinitely)
+  - When `marketing_end_date` exists, it's usually in the future
+  - Truly inactive NDCs are rare in the FDA database
+
+  **Practical testing approaches:**
+  
+  1. **Search for drugs with many package variations**: Some drugs like `digoxin`, `warfarin`, or `phentermine` may have older packages. Search the FDA API:
+     ```bash
+     curl -s "https://api.fda.gov/drug/ndc.json?search=generic_name:digoxin&limit=100" | \
+       jq '.results[] | .packaging[]? | select(.marketing_end_date != null) | {package_ndc, marketing_end_date, description}'
+     ```
+     Look for `marketing_end_date` values in YYYYMMDD format that are before today's date (e.g., `20241231` or earlier).
+  
+  2. **Use a found inactive NDC directly**: If you find one, enter it in the "Drug Name or NDC" field, add a valid SIG and days supply, then calculate. The system should show a red "Inactive" warning badge.
+  
+  3. **Test fallback behavior**: The system shows inactive NDCs when no active ones are available. You can verify this works by checking the code logic, though finding a real example is difficult.
+  
+  4. **Check debug logs**: When running calculations, check `debug-metformin.log` for packages with `isActive: false` to see if any inactive packages are being found.
+  
+  **Note**: Finding truly inactive NDCs is rare because most packages don't have `marketing_end_date` set, and when they do, the dates are usually in the future. The warning display functionality is implemented and will work when inactive NDCs are encountered.
 
 **Expected:** Warning badge displayed (red for inactive) on affected NDC recommendations
 
