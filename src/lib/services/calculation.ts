@@ -1,7 +1,11 @@
 import type { PrescriptionInput, CalculationResult, NDCPackage } from '$lib/types';
 import { normalizeDrugInput, isNDCFormat, normalizeNDC } from '$lib/api/rxnorm';
 import { getNDCsForRxCUI } from '$lib/api/rxnorm';
-import { getMultipleNDCInfo, searchNDCPackagesByDrugName } from '$lib/api/fda';
+import {
+	getMultipleNDCInfo,
+	searchNDCPackagesByDrugName,
+	getAllPackagesForProductNDC
+} from '$lib/api/fda';
 import { parseSIGWithFallback } from '$lib/parsers/sig';
 import { calculateTotalQuantityNeeded } from '$lib/calculators/quantity';
 import { calculateDaysSupplyFromQuantity } from '$lib/calculators/reverse';
@@ -31,15 +35,26 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 		const normalizedNDC = normalizeNDC(originalNDC);
 		rxcui = 'N/A';
 		drugName = `NDC: ${normalizedNDC}`;
-		// Get package info for single NDC - pass original to preserve format
-		const packageInfo = await getMultipleNDCInfo([originalNDC]);
-		if (packageInfo.length === 0) {
+
+		// Check if it's a product NDC (8-9 digits) or package NDC (10-11 digits)
+		const cleaned = originalNDC.replace(/[-\s]/g, '');
+		const isProductNDC = cleaned.length >= 8 && cleaned.length <= 9;
+
+		if (isProductNDC) {
+			// For product NDCs, get all packaging options
+			packages = await getAllPackagesForProductNDC(originalNDC);
+		} else {
+			// For package NDCs, get single package info
+			const packageInfo = await getMultipleNDCInfo([originalNDC]);
+			packages = packageInfo;
+		}
+
+		if (packages.length === 0) {
 			throw getGenericError(
 				'No package information found',
 				'Unable to retrieve package information for this NDC. Please verify the NDC.'
 			);
 		}
-		packages = packageInfo;
 	} else {
 		// Drug name input - use RxNorm
 		const normalized = await normalizeDrugInput(input.drugNameOrNDC);

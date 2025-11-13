@@ -403,6 +403,70 @@ export async function searchNDCsByDrugName(drugName: string): Promise<string[]> 
 	}
 }
 
+// Get all packaging options for a product NDC (returns all packages from packaging array)
+export async function getAllPackagesForProductNDC(ndc: string): Promise<NDCPackage[]> {
+	const normalizedNDC = normalizeNDC(ndc);
+	const cacheKey = `fda:product:${normalizedNDC}:all`;
+	const cached = cache.get<NDCPackage[]>(cacheKey);
+	if (cached) return cached;
+
+	try {
+		const apiKey = getFDAApiKey();
+		const apiKeyParam = apiKey ? `&api_key=${apiKey}` : '';
+
+		const originalNDC = ndc.trim();
+		const isPackageNDC = normalizedNDC.length === 11;
+
+		// For product NDCs, search by product_ndc
+		const result = await findNDCWithMultipleFormats(
+			originalNDC,
+			normalizedNDC,
+			isPackageNDC,
+			apiKeyParam
+		);
+
+		if (!result) return [];
+
+		const packages: NDCPackage[] = [];
+		const seenNDCs = new Set<string>();
+
+		// If result has packaging array, create a package for each packaging item
+		if (result.packaging && result.packaging.length > 0) {
+			for (const pkg of result.packaging) {
+				const packageInfo = resultToNDCPackage(result, pkg);
+				if (packageInfo && !seenNDCs.has(packageInfo.ndc)) {
+					seenNDCs.add(packageInfo.ndc);
+					packages.push(packageInfo);
+				}
+			}
+		} else {
+			// If no packaging array, use product-level data
+			const packageInfo = resultToNDCPackage(result);
+			if (packageInfo && !seenNDCs.has(packageInfo.ndc)) {
+				seenNDCs.add(packageInfo.ndc);
+				packages.push(packageInfo);
+			}
+		}
+
+		// Filter out invalid packages before caching
+		const validPackages = packages.filter(
+			(pkg) =>
+				pkg.packageSize > 1 && pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
+		);
+
+		if (validPackages.length > 0) {
+			cache.set(cacheKey, validPackages);
+		}
+
+		return validPackages;
+	} catch (error) {
+		if (error instanceof Error && error.message.includes('timeout')) {
+			throw getAPITimeoutError();
+		}
+		return [];
+	}
+}
+
 export async function getMultipleNDCInfo(ndcs: string[]): Promise<NDCPackage[]> {
 	// Fetch in parallel with limited concurrency to avoid overwhelming API
 	const results = await Promise.allSettled(ndcs.map((ndc) => getNDCPackageInfo(ndc)));
