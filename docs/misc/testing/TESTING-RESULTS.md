@@ -161,7 +161,7 @@
 - Shows NDC recommendations with ml-based package sizes
 - Package sizes displayed in milliliters
 
-**Result:** ⏳ PENDING
+**Result:** ✅ PASSED
 
 **Note:** Tests the new liquid medication SIG parsing and ml-based quantity calculations.
 
@@ -181,7 +181,7 @@
 - Shows NDC recommendations with ml-based package sizes
 - Conversion happens transparently during SIG parsing
 
-**Result:** ⏳ PENDING
+**Result:** ✅ PASSED
 
 **Note:** Tests automatic unit conversion from teaspoons to milliliters.
 
@@ -201,7 +201,7 @@
 - Calculates total quantity: 600 units (20 units × 1 dose/day × 30 days)
 - Shows NDC recommendations with unit-based package sizes (vials typically contain 1000 units)
 
-**Result:** ⏳ PENDING
+**Result:** ✅ PASSED
 
 **Note:** Tests the new insulin SIG parsing with meal-time and bedtime patterns.
 
@@ -221,7 +221,7 @@
 - Shows NDC recommendations with puff/actuation-based package sizes
 - Package sizes displayed in puffs or actuations
 
-**Result:** ⏳ PENDING
+**Result:** ✅ PASSED
 
 **Note:** Tests the new inhaler SIG parsing and puff-based quantity calculations.
 
