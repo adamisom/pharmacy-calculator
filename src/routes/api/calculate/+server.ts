@@ -6,6 +6,14 @@ import type { UserFriendlyError } from '$lib/utils/errors';
 export const POST: RequestHandler = async ({ request }) => {
 	let input: PrescriptionInput | null = null;
 	try {
+		// Clear debug log file at start of each calculation
+		try {
+			const { clearLogFile } = await import('$lib/utils/debug-logger');
+			clearLogFile();
+		} catch {
+			// Ignore if logger not available
+		}
+
 		input = await request.json();
 		console.log('[API] Received request:', JSON.stringify(input, null, 2));
 

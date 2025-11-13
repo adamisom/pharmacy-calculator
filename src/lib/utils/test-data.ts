@@ -6,10 +6,10 @@ export const TEST_DRUGS = [
 ] as const;
 
 export const TEST_SIGS = [
+	'1 tablet daily',
 	'1 tablet twice daily',
 	'2 tablets daily',
 	'1 tablet 3 times daily',
-	'1 tablet daily',
 	'1 tablet weekly',
 	'1 tablet 2 times weekly'
 ] as const;

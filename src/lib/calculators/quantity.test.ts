@@ -53,6 +53,13 @@ describe('quantity calculator', () => {
 			expect(calculatePackagesNeeded(0, 30)).toBe(0);
 			expect(calculatePackagesNeeded(1, 30)).toBe(1);
 		});
+
+		it('should return 0 for invalid inputs (packageSize <= 0 or totalQuantity <= 0)', () => {
+			expect(calculatePackagesNeeded(5, 0)).toBe(0);
+			expect(calculatePackagesNeeded(5, -1)).toBe(0);
+			expect(calculatePackagesNeeded(0, 30)).toBe(0);
+			expect(calculatePackagesNeeded(-1, 30)).toBe(0);
+		});
 	});
 
 	describe('calculateOverfill', () => {

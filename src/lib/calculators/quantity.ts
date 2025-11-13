@@ -5,7 +5,10 @@ export function calculateTotalQuantityNeeded(parsedSIG: ParsedSIG, daysSupply: n
 }
 
 export function calculatePackagesNeeded(totalQuantity: number, packageSize: number): number {
-	if (packageSize <= 0) return 0;
+	// Validate inputs - if invalid, return 0 (will be filtered out by caller)
+	if (packageSize <= 0 || totalQuantity <= 0) {
+		return 0;
+	}
 	return Math.ceil(totalQuantity / packageSize); // Always round up
 }
 

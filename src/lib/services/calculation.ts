@@ -99,7 +99,31 @@ export async function calculatePrescription(input: PrescriptionInput): Promise<C
 	}
 
 	// 6. Select optimal NDCs
+	// Log summary to console, full list to file
+	if (packages.length > 0) {
+		console.log(
+			`[CALC] Selecting NDCs - Total quantity needed: ${totalQuantityNeeded}, Found ${packages.length} packages (logging full details to debug-metformin.log)`
+		);
+
+		// Log full package list to file
+		import('$lib/utils/debug-logger')
+			.then(({ logToFile }) => {
+				logToFile('[CALC] Selecting NDCs - Total quantity needed and all available packages', {
+					totalQuantityNeeded,
+					packages: packages.map((p) => ({ ndc: p.ndc, size: p.packageSize, active: p.isActive }))
+				});
+			})
+			.catch(() => {
+				// Ignore if logger not available
+			});
+	}
 	let recommendations = selectOptimalNDCs(packages, totalQuantityNeeded);
+	console.log(
+		'[CALC] Selected recommendations:',
+		recommendations.map(
+			(r) => `${r.ndc} (packages: ${r.packagesNeeded}, overfill: ${r.overfill.toFixed(1)}%)`
+		)
+	);
 
 	// Try multi-pack combination if single-pack options have high overfill
 	if (

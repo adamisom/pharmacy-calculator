@@ -39,12 +39,50 @@ Each recommendation shows:
 - **Overfill**: Percentage of extra medication (warnings shown if >10%)
 - **Package Details**: Size, type, manufacturer, and active status
 
+### Understanding Package Size
+
+**Package size** is the number of units (tablets, capsules, etc.) in a single package/bottle/box of medication.
+
+**Examples:**
+- "30 TABLET in 1 BOTTLE" → package size = 30 tablets
+- "60 CAPSULE in 1 BOTTLE" → package size = 60 capsules
+- "100 TABLET, FILM COATED in 1 BOTTLE" → package size = 100 tablets
+
+**How Package Size is Determined:**
+
+The system extracts package size from FDA API package descriptions by looking for patterns like:
+- `(\d+) TABLET`
+- `(\d+) CAPSULE`
+- `(\d+) ML`
+
+**Package Size Extraction Failures:**
+
+If the system cannot extract a valid package size from the FDA description (e.g., bulk/industrial packages like "50 kg in 1 BAG" or malformed descriptions), it defaults to `packageSize: 1`.
+
+**Why `packageSize === 1` Indicates a Problem:**
+
+1. **Real packages are rarely size 1**: Most consumer medication packages contain 30, 60, 100, or more units
+2. **Incorrect calculations**: A package size of 1 leads to wrong overfill calculations
+   - Example: Need 5 tablets, package size incorrectly set to 1
+   - System calculates: 5 packages needed (5 × 1 = 5 tablets)
+   - Overfill: 0% (incorrect - hides real overfill)
+3. **Hides real overfill warnings**: 
+   - Example: Need 5 tablets, actual package is 30 tablets
+   - Should show: 500% overfill warning
+   - With size 1: Shows 0% overfill (no warning)
+
+**System Behavior:**
+
+The system automatically **excludes packages where `packageSize === 1`** from recommendations, as these represent extraction failures and are unreliable. Only packages with valid extracted package sizes are shown in results.
+
 ### Warnings
 
 The system flags:
 - **Inactive NDCs**: NDCs that are no longer active in the FDA directory
 - **High Overfill**: When recommended packages exceed needed quantity by >10%
 - **Underfill**: When available packages don't meet the required quantity
+
+**Note on Inactive NDCs**: If no active NDCs are available for a medication, the system will show inactive NDCs with a warning. This allows you to see what packages exist, but you should verify with the manufacturer or use an alternative medication before dispensing inactive NDCs.
 
 ### JSON Output
 

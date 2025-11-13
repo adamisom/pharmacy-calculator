@@ -102,6 +102,49 @@ describe('NDC selector', () => {
 			const result = selectOptimalNDCs([], 60);
 			expect(result).toHaveLength(0);
 		});
+
+		it('should filter out packages with packageSize === 1 (extraction failures)', () => {
+			const packages = [
+				createPackage('111', 1), // Extraction failed, should be filtered out
+				createPackage('222', 1, true), // Also filtered out
+				createPackage('333', 30) // Valid package
+			];
+
+			const result = selectOptimalNDCs(packages, 30);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].ndc).toBe('333');
+			expect(result[0].packageDetails.packageSize).toBe(30);
+		});
+
+		it('should filter out packages with packageSize > MAX_REASONABLE_PACKAGE_SIZE (bulk/industrial)', () => {
+			const packages = [
+				createPackage('111', 15000), // Too large, should be filtered out
+				createPackage('222', 20000), // Too large, should be filtered out
+				createPackage('333', 30) // Valid package
+			];
+
+			const result = selectOptimalNDCs(packages, 30);
+
+			expect(result).toHaveLength(1);
+			expect(result[0].ndc).toBe('333');
+			expect(result[0].packageDetails.packageSize).toBe(30);
+		});
+
+		it('should filter out recommendations with packagesNeeded === 0 or totalUnits === 0', () => {
+			const packages = [
+				createPackage('111', 30), // Valid
+				createPackage('222', 0) // Invalid - will result in packagesNeeded === 0
+			];
+
+			const result = selectOptimalNDCs(packages, 30);
+
+			// Should only return the valid package, not the one with packagesNeeded === 0
+			expect(result).toHaveLength(1);
+			expect(result[0].ndc).toBe('111');
+			expect(result[0].packagesNeeded).toBeGreaterThan(0);
+			expect(result[0].totalUnits).toBeGreaterThan(0);
+		});
 	});
 
 	describe('findMultiPackCombination', () => {

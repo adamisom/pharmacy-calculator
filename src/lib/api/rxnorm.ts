@@ -31,14 +31,15 @@ export async function searchDrugName(
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/approximateTerm.json?term=${encodeURIComponent(drugName)}&maxEntries=1`;
 		console.log('[RxNorm] Searching for drug:', drugName, 'URL:', url);
 		const data = await fetchWithRetry<RxNormApproximateTermResult>(url);
-		console.log('[RxNorm] Response:', JSON.stringify(data, null, 2));
 
 		// Find first candidate that has both rxcui and name
 		const candidates = data.approximateGroup?.candidate || [];
 		const candidate = candidates.find((c) => c.rxcui && c.name);
 
-		if (!candidate?.rxcui || !candidate?.name) {
+		// Only log full response if there's an issue (no candidates or no name found)
+		if (candidates.length === 0 || !candidate?.rxcui || !candidate?.name) {
 			console.log('[RxNorm] No candidate with name found for:', drugName);
+			console.log('[RxNorm] Full response:', JSON.stringify(data, null, 2));
 			return null;
 		}
 
@@ -74,10 +75,14 @@ export async function getNDCsForRxCUI(rxcui: string, forceRefresh = false): Prom
 		const url = `${API_CONFIG.RXNORM_BASE_URL}/rxcui/${rxcui}/ndcs.json`;
 		console.log('[RxNorm] Fetching NDCs for RxCUI:', rxcui, 'URL:', url);
 		const data = await fetchWithRetry<RxNormNDCResult>(url);
-		console.log('[RxNorm] NDC response:', JSON.stringify(data, null, 2));
 
 		const ndcs = data.ndcGroup?.ndcList?.ndc || [];
 		console.log('[RxNorm] Extracted NDCs:', ndcs.length, ndcs.slice(0, 5));
+
+		// Only log full response if no NDCs found (might indicate an issue)
+		if (ndcs.length === 0) {
+			console.log('[RxNorm] No NDCs found, full response:', JSON.stringify(data, null, 2));
+		}
 
 		// Only cache if we got results (don't cache empty arrays to allow retries)
 		if (ndcs.length > 0) {

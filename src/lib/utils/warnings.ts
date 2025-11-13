@@ -24,6 +24,9 @@ export function generateWarnings(
 		if (!rec.packageDetails.isActive) {
 			warnings.push(`NDC ${rec.ndc} is inactive.`);
 		}
+		console.log(
+			`[WARNINGS] Checking NDC ${rec.ndc}: overfill=${rec.overfill.toFixed(1)}%, threshold=${CALCULATION_THRESHOLDS.OVERFILL_WARNING}%, should warn=${rec.overfill > CALCULATION_THRESHOLDS.OVERFILL_WARNING}`
+		);
 		if (rec.overfill > CALCULATION_THRESHOLDS.OVERFILL_WARNING) {
 			warnings.push(`NDC ${rec.ndc} has ${rec.overfill.toFixed(1)}% overfill.`);
 		}

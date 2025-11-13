@@ -137,7 +137,7 @@
 					}
 				}}
 				disabled={loading}
-				class="ml-auto rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+				class="ml-3 rounded-md border border-gray-300 px-3 py-1.5 text-sm text-gray-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
 			>
 				<option value="">-- Common prescription instructions --</option>
 				{#each TEST_SIGS as testSig (testSig)}

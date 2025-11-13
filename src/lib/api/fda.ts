@@ -95,8 +95,7 @@ export function extractPackageSize(description: string): number {
 	}
 
 	// Priority 2: If no unit count found, this is likely an invalid/malformed description
-	// Don't guess - return a safe default and log a warning
-	console.warn('[FDA] Could not extract package size from description:', description);
+	// Don't guess - return a safe default (warning logged to file in resultToNDCPackage)
 	return FDA_CONFIG.DEFAULT_PACKAGE_SIZE;
 }
 
@@ -266,6 +265,21 @@ function resultToNDCPackage(
 	const packageSize = extractPackageSize(description);
 	const packageType = inferPackageType(description);
 
+	// Debug logging for package size extraction
+	if (packageSize === FDA_CONFIG.DEFAULT_PACKAGE_SIZE && description) {
+		const warningMsg = `[FDA] Package size extraction failed for NDC ${packageNDC}, description: "${description}", defaulting to ${FDA_CONFIG.DEFAULT_PACKAGE_SIZE}`;
+		// Only log to file, not console (too verbose)
+
+		// Log to file (async import since this is in a sync function)
+		import('$lib/utils/debug-logger')
+			.then(({ logToFile }) => {
+				logToFile(warningMsg, { ndc: packageNDC, description, extractedSize: packageSize });
+			})
+			.catch(() => {
+				// Ignore if logger not available
+			});
+	}
+
 	// Check if this specific package is active
 	let isActive = true;
 	if (packaging?.marketing_end_date) {
@@ -291,8 +305,27 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 	const cacheKey = `fda:packages:${drugName.toLowerCase().trim()}`;
 	const cached = cache.get<NDCPackage[]>(cacheKey);
 	if (cached) {
-		console.log('[FDA] Packages from cache for drug:', drugName, 'count:', cached.length);
-		return cached;
+		// Filter out invalid packages (packageSize === 1) from cache
+		// Also exclude unreasonably large packages (bulk/industrial)
+		// This handles cases where cache was populated before the fix
+		const validCached = cached.filter(
+			(pkg) =>
+				pkg.packageSize > 1 && pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
+		);
+		if (validCached.length > 0) {
+			console.log(
+				'[FDA] Packages from cache for drug:',
+				drugName,
+				'count:',
+				validCached.length,
+				'(filtered from',
+				cached.length,
+				')'
+			);
+			return validCached;
+		}
+		// If all cached packages are invalid, clear cache and fetch fresh
+		cache.delete(cacheKey);
 	}
 
 	try {
@@ -330,16 +363,34 @@ export async function searchNDCPackagesByDrugName(drugName: string): Promise<NDC
 			}
 		}
 
+		// Log summary to console, full list to file
 		console.log(
-			'[FDA] Extracted unique packages:',
-			packages.length,
-			packages.slice(0, 5).map((p) => p.ndc)
+			`[FDA] Extracted ${packages.length} unique packages, logging full details to debug-metformin.log`
 		);
 
-		if (packages.length > 0) {
-			cache.set(cacheKey, packages);
+		// Log detailed package info to file
+		try {
+			const { logToFile } = await import('$lib/utils/debug-logger');
+			logToFile('[FDA] Extracted unique packages (full list)', packages);
+		} catch {
+			// Ignore if logger not available
 		}
-		return packages;
+
+		// Filter out invalid packages before caching
+		// Exclude packages where extraction failed (packageSize === 1)
+		// Also exclude unreasonably large packages (bulk/industrial, not consumer packages)
+		const validPackages = packages.filter(
+			(pkg) =>
+				pkg.packageSize > 1 && pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
+		);
+
+		if (validPackages.length > 0) {
+			cache.set(cacheKey, validPackages);
+			console.log(
+				`[FDA] Cached ${validPackages.length} valid packages (filtered out ${packages.length - validPackages.length} with packageSize === 1)`
+			);
+		}
+		return validPackages;
 	} catch (err) {
 		// Handle 400 errors gracefully (bad request, invalid search query)
 		if (err instanceof Error && err.message.includes('HTTP 400')) {
@@ -404,10 +455,16 @@ export async function getMultipleNDCInfo(ndcs: string[]): Promise<NDCPackage[]> 
 	// Fetch in parallel with limited concurrency to avoid overwhelming API
 	const results = await Promise.allSettled(ndcs.map((ndc) => getNDCPackageInfo(ndc)));
 
-	return results
+	const packages = results
 		.filter(
 			(result): result is PromiseFulfilledResult<NDCPackage> =>
 				result.status === 'fulfilled' && result.value !== null
 		)
 		.map((result) => result.value);
+
+	// Filter out invalid packages (packageSize === 1) and unreasonably large packages
+	return packages.filter(
+		(pkg) =>
+			pkg.packageSize > 1 && pkg.packageSize <= CALCULATION_THRESHOLDS.MAX_REASONABLE_PACKAGE_SIZE
+	);
 }
